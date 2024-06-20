@@ -7,8 +7,21 @@ from fpdf import FPDF
 import fitz
 from io import BytesIO
 import base64
+from rembg import remove
 
-# Function to generate ID card for an individual
+def preprocess_image(image_path):
+    input_image = Image.open(image_path)
+    output_image = remove(input_image)
+
+    # Convert the background to white
+    white_bg = Image.new("RGBA", output_image.size, "WHITE")
+    final_image = Image.alpha_composite(white_bg, output_image)
+
+    # Convert to RGB mode
+    final_image = final_image.convert("RGB")
+
+    return final_image
+
 def generate_card(data, template_path, image_folder, qr_folder):
     if not os.path.exists(template_path):
         st.error("Template image not found at the specified location.")
@@ -29,15 +42,18 @@ def generate_card(data, template_path, image_folder, qr_folder):
         st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
         return None
 
+    # Preprocess the image
+    preprocessed_pic = preprocess_image(pic_path)
+    preprocessed_pic = preprocessed_pic.resize((144, 145))
+
     template = Image.open(template_path)
-    pic = Image.open(pic_path).resize((144, 145))
     qr = Image.open(qr_path).resize((161, 159))
     
-    template.paste(pic, (27, 113, 171, 258))
+    template.paste(preprocessed_pic, (27, 113, 171, 258))
     template.paste(qr, (497, 109, 658, 268))
     
     draw = ImageDraw.Draw(template)
-    font = ImageFont.truetype("C:\\WINDOWS\\FONTS\\ARIAL.TTF", size=18)  # Adjust the font path as needed
+    font = ImageFont.truetype("arial.ttf", size=18)  # Adjust the font path as needed
     
     wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
     draw.text((311, 121), wrapped_div, font=font, fill='black')
@@ -55,7 +71,7 @@ def generate_card(data, template_path, image_folder, qr_folder):
     draw.text((621, 283), str(data['ID']), font=font, fill='black')
 
     # Adjusted for name wrapping
-    name_font = ImageFont.truetype("C:\\WINDOWS\\FONTS\\ARIAL.TTF", size=18)  # Adjust the font path as needed
+    name_font = ImageFont.truetype("arial.ttf", size=18)  # Adjust the font path as needed
     wrapped_name = center_align_text_wrapper(data['Name'], width=22)
     
     # Get the text size using ImageFont.textbbox()
@@ -88,7 +104,7 @@ def center_align_text_wrapper(text, width=15):
 
     return centered_text
 
-# Function to get the head of the division
+# Function to get the head by division
 def get_head_by_division(division_name):
     divisions = {
         "Advanced Information Technologies Group": ["Dr. Sanjay Singh"],
@@ -113,29 +129,38 @@ def get_head_by_division(division_name):
 # Function to create a PDF from the generated ID cards
 def create_pdf(images, pdf_path):
     pdf = FPDF()
-    num_images = len(images)
-    rows = (num_images + 3) // 4  # Calculate number of rows needed for the grid
+    cards_per_page = 8  # 2x4 grid
+    num_pages = -(-len(images) // cards_per_page)  # Ceiling division to get the number of pages needed
     
-    pdf.set_auto_page_break(auto=True, margin=15)
-    for i in range(rows):
+    for page_num in range(num_pages):
         pdf.add_page()
-        for j in range(4):
-            index = i * 4 + j
-            if index < num_images:
-                x_offset = j * 210  # Adjust the horizontal spacing
-                y_offset = i * 297  # Adjust the vertical spacing
-                pdf.image(images[index], x=10 + x_offset, y=10 +                y_offset, w=200)
-    # Output PDF after adding all pages
+        
+        for i in range(cards_per_page):
+            card_index = page_num * cards_per_page + i
+            if card_index < len(images):
+                card = images[card_index]
+                temp_image_path = f"temp_image_{card_index}.jpg"
+                # Ensure the image is in RGB mode before saving as JPEG
+                if card.mode == 'RGBA':
+                    card = card.convert('RGB')
+                card.save(temp_image_path)
+                
+                # Calculate x, y position for each card in the grid
+                col = i % 4
+                row = i // 4
+                x_offset = col * (pdf.w / 4 - 10)
+                y_offset = row * (pdf.h / 2 - 10)
+                
+                pdf.image(temp_image_path, x=5 + x_offset, y=5 + y_offset, w=pdf.w / 4 - 10)
+                os.remove(temp_image_path)
+    
     pdf.output(pdf_path)
     return pdf_path
 
 # Function to display the PDF in Streamlit
 def display_pdf(pdf_path):
-    # Read the PDF file as bytes
-    with open(pdf_path, "rb") as file:
-        pdf_bytes = file.read()
-
-    # Encode PDF bytes to base64
+    doc = fitz.open(pdf_path)
+    pdf_bytes = doc.convert_to_pdf()
     b64_pdf = base64.b64encode(pdf_bytes).decode()
 
     # Display PDF in an iframe
@@ -149,22 +174,21 @@ def display_pdf(pdf_path):
         file_name="generated_id_cards.pdf",
         mime="application/pdf"
     )
-
-    # Print button
-    print_js = f"""
-        <script>
-            function printPDF() {{
-                const linkSource = "data:application/pdf;base64,{b64_pdf}";
-                const downloadLink = document.createElement("a");
-                downloadLink.href = linkSource;
-                downloadLink.download = "generated_id_cards.pdf";
-                downloadLink.click();
-            }}
-        </script>
-        <button onclick="printPDF()">Print PDF</button>
+    print_js = """
+    <script>
+        // Your JavaScript code here
+        console.log("Hello from JavaScript!");
+    </script>
     """
     st.markdown(print_js, unsafe_allow_html=True)
 
+    # Display ID card images directly
+    for page in doc:
+        for img in page.get_images(full=True):
+            xref = img[0]
+            base_image = doc.extract_image(xref)
+            image_bytes = base64.b64encode(base_image["image"])
+            st.image(base_image["image"], caption="Generated ID Card")
 # Main Streamlit app
 def main():
     st.title("Automatic ID Card Generation")
