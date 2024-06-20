@@ -8,7 +8,7 @@ import fitz  # PyMuPDF
 import base64
 from rembg import remove  # assuming this library is correctly installed
 
-
+# Function to preprocess image using rembg
 def preprocess_image(image_path):
     input_image = Image.open(image_path)
     output_image = remove(input_image)
@@ -22,7 +22,7 @@ def preprocess_image(image_path):
 
     return final_image
 
-
+# Function to generate ID card based on data
 def generate_card(data, template_path, image_folder, qr_folder):
     if not os.path.exists(template_path):
         st.error("Template image not found at the specified location.")
@@ -85,7 +85,6 @@ def generate_card(data, template_path, image_folder, qr_folder):
 
     return template
 
-
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
     words = text.split()
@@ -105,7 +104,6 @@ def center_align_text_wrapper(text, width=15):
     centered_text = "\n".join(centered_lines)
 
     return centered_text
-
 
 # Function to get the head by division
 def get_head_by_division(division_name):
@@ -128,7 +126,6 @@ def get_head_by_division(division_name):
         return head_names[0]  # Assuming only one head for each division
     else:
         return "Division not found or head information not available."
-
 
 # Function to create a PDF from the generated ID cards
 def create_pdf(images, pdf_path):
@@ -161,7 +158,6 @@ def create_pdf(images, pdf_path):
     pdf.output(pdf_path)
     return pdf_path
 
-
 # Function to display the PDF in Streamlit
 def display_pdf(pdf_path):
     doc = fitz.open(pdf_path)
@@ -188,44 +184,56 @@ def display_pdf(pdf_path):
             image_bytes = base64.b64encode(base_image["image"])
             st.image(base_image["image"], caption="Generated ID Card")
 
-
 # Main Streamlit app
 def main():
     st.title("Automatic ID Card Generation")
 
-    template_path = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST.png"
-    image_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\downloaded_images"
-    qr_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST_output_qr_codes"
-    output_pdf_path = "C:\\Users\\Shree\\Desktop\\generated_id_cards.pdf"
+    # Template, image, and QR code folders
+    template_path = "path_to_template_image.png"
+    image_folder = "path_to_image_folder"
+    qr_folder = "path_to_qr_folder"
+    output_pdf_path = "generated_id_cards.pdf"
 
     # File uploader for CSV files
     uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
 
+    # Editor for CSV content
+    csv_content = None
     if uploaded_file is not None:
-        # Read the uploaded CSV file into a DataFrame
-        df = pd.read_csv(uploaded_file, converters={'ID': str})
+        csv_content = uploaded_file.read()  # Read uploaded file content
+        # Display the uploaded data in a textarea for editing
+        st.text_area("Edit CSV content", value=csv_content.decode())
+
+    if uploaded_file is not None and csv_content:
+        # Read the uploaded CSV content into a DataFrame
+        df = pd.read_csv(pd.compat.StringIO(csv_content.decode()), converters={'ID': str})
 
         # Check for duplicates and remove them
         df = df.drop_duplicates()
 
-        # Display the uploaded data
-        st.write("Uploaded CSV file:")
-        edited_data = st.dataframe(df)
+        # Display the processed data
+        st.write("Processed CSV data:")
+        st.write(df)
 
         # Button to generate ID cards
         if st.button("Generate ID Cards"):
             images = []
-            records = edited_data.to_dict(orient='records')
+            records = df.to_dict(orient='records')
+                        # Generate ID cards for each record in the CSV
             for record in records:
                 card = generate_card(record, template_path, image_folder, qr_folder)
                 if card:
                     images.append(card)
 
             # Create and display the PDF
-            pdf_path = create_pdf(images, output_pdf_path)
-            st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
-            display_pdf(pdf_path)
+            if images:
+                pdf_path = create_pdf(images, output_pdf_path)
+                st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
+                display_pdf(pdf_path)
+            else:
+                st.warning("No ID cards generated. Please check your data and try again.")
 
-
+# Run the Streamlit app
 if __name__ == "__main__":
     main()
+
