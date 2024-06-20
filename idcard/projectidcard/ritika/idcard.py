@@ -24,11 +24,6 @@ def preprocess_image(image_path):
     final_image = final_image.convert("RGB")
 
     return final_image
-# Title with image
-image = Image.open("logo.jpg.png")
-st.image(image, use_column_width=True)
-
-
 def generate_card(data, template_path, image_folder, qr_folder):
     if not os.path.exists(template_path):
         st.error("Template image not found at the specified location.")
