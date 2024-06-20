@@ -201,7 +201,7 @@ def main():
     st.title("Automatic ID Card Generation")
     
     template_path = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST.png"
-    image_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\downloaded_images"
+    image_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\downloaded_image"
     qr_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST_output_qr_codes"
     output_pdf_path = "C:\\Users\\Shree\\Desktop\\generated_id_cards.pdf"
 
