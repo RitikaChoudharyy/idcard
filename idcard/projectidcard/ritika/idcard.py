@@ -269,11 +269,8 @@ def main():
                 pdf_path = create_pdf(images, output_pdf_path)
                 st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
                 display_pdf(pdf_path)
-
-                else:
-                    st.error("No students found with the specified IDs")
             else:
-                st.error("Please enter at least one Student ID")
+                st.error("No students found with the specified IDs or Student ID input is empty")
 
 if __name__ == "__main__":
     main()
