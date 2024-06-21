@@ -57,7 +57,17 @@ def generate_card(data, template_path, image_folder, qr_folder):
     
     draw = ImageDraw.Draw(template)
     # Adjust the font path to match your environment
-    font_path = "C:\WINDOWS\FONTS\ARIAL.TTF"
+    font_path = "C:\\WINDOWS\\FONTS\\ARIAL.TTF"  # Adjust the path based on your environment
+
+    # Check if the font file exists
+if not os.path.exists(font_path):
+    raise FileNotFoundError(f"Font file not found: {font_path}")
+try:
+    font = ImageFont.truetype(font_path, size=18)
+except OSError as e:
+    st.error(f"Error loading font: {e}")
+    st.stop()  # Stop Streamlit execution in case of error
+
     font = ImageFont.truetype(font_path, size=18)
     
     wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
