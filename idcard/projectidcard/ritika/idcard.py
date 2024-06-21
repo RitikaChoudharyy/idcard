@@ -197,10 +197,10 @@ def display_pdf(pdf_path):
 def main():
     st.title("Automatic ID Card Generation")
     
-    template_path = "C:\Users\Shree\Desktop\idcard\projectidcard\ST.png"
-    image_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\downloaded_images"
-    qr_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST_output_qr_codes"
-    output_pdf_path = "C:\\Users\\Shree\\Desktop\\generated_id_cards.pdf"
+    template_path = r"C:\Users\Shree\Desktop\idcard\projectidcard\ritika\ST.png"
+    image_folder =r"C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\downloaded_images"
+    qr_folder = r"C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST_output_qr_codes"
+    output_pdf_path = r"C:\\Users\\Shree\\Desktop\\generated_id_cards.pdf"
 
     # File uploader for CSV files
     uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
