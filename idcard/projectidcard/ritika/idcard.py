@@ -67,7 +67,7 @@ def generate_card(data, template_path, image_folder, qr_folder):
         template.paste(qr, (497, 109, 658, 268))
         
         draw = ImageDraw.Draw(template)
-        name_font = ImageFont.truetype("C:\\WINDOWS\\FONTS\\ARIAL.TTF", size=18)
+        name_font = ImageFont.truetype(font_path, size=18)
 
         font_size = 18
         
