@@ -8,12 +8,12 @@ import fitz  # PyMuPDF
 import base64
 
 # Check if rembg can be imported, otherwise handle the error gracefully
-try:
-    from rembg import remove  # Assuming this library is correctly installed
-    REMBG_AVAILABLE = True
-except ImportError:
-    REMBG_AVAILABLE = False
-    st.warning("Background removal library 'rembg' is not available. ID cards will be generated without background removal.")
+#try:
+    #from rembg import remove  # Assuming this library is correctly installed
+    #REMBG_AVAILABLE = True
+#except ImportError:
+    #REMBG_AVAILABLE = False
+    #st.warning("Background removal library 'rembg' is not available. ID cards will be generated without background removal.")
 
 # Function to preprocess image (remove background and convert to RGB), handle if rembg is not available
 def preprocess_image(image_path):
