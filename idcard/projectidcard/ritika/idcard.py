@@ -215,7 +215,7 @@ def main():
             records = edited_data.to_dict(orient='records')
             for record in records:
                                 card = generate_card(record, template_path, image_folder, qr_folder)
-                if card:
+        if card:
                     images.append(card)
 
             # Create and display the PDF
