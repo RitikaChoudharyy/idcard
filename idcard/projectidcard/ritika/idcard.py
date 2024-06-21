@@ -52,46 +52,62 @@ def generate_card(data, template_path, image_folder, qr_folder):
         return None
 
     # Preprocess the image
-    preprocessed_pic = preprocess_image(pic_path)
-    preprocessed_pic = preprocessed_pic.resize((144, 145))
+    try:
+        preprocessed_pic = preprocess_image(pic_path)
+        preprocessed_pic = preprocessed_pic.resize((144, 145))
+    except Exception as e:
+        st.error(f"Error preprocessing image for ID: {pic_id}. Error: {str(e)}")
+        return None
 
-    template = Image.open(template_path)
-    qr = Image.open(qr_path).resize((161, 159))
+    try:
+        template = Image.open(template_path)
+        qr = Image.open(qr_path).resize((161, 159))
+        
+        template.paste(preprocessed_pic, (27, 113, 171, 258))
+        template.paste(qr, (497, 109, 658, 268))
+        
+        draw = ImageDraw.Draw(template)
+        font_path = "C:\WINDOWS\FONTS\ARIAL.TTF"  # Adjust the font path as needed
+        font_size = 18
+        
+        # Attempt to load Arial font, fallback to default system font if not found
+        try:
+            font = ImageFont.truetype(font_path, size=font_size)
+        except IOError:
+            font = ImageFont.load_default()  # Fallback to default font if Arial is not available
+        
+        wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
+        draw.text((311, 121), wrapped_div, font=font, fill='black')
+        draw.text((200, 356), data['University '], font=font, fill='black')
+        
+        division_input = data['Division/Section']
+        head_name = get_head_by_division(division_input)
+        
+        wrapped_supri = textwrap.fill(str(head_name), width=20).title()
+        draw.text((311, 170), wrapped_supri.title(), font=font, fill='black')
+        
+        draw.text((305, 219), data['Internship Start Date'], font=font, fill='black')
+        draw.text((303, 266), data['Internship End Date'], font=font, fill='black')
+        draw.text((300, 312), str(data['Mobile']), font=font, fill='black')
+        draw.text((621, 283), str(data['ID']), font=font, fill='black')
+        
+        # Adjusted for name wrapping
+        name_font = ImageFont.truetype(C:\WINDOWS\FONTS\ARIAL.TTF, size=18)  # Adjust the font path and size as needed
+        wrapped_name = center_align_text_wrapper(data['Name'], width=22)
+        
+        # Get the text size using ImageFont.textbbox()
+        name_bbox = name_font.getbbox(wrapped_name)
+        name_width = name_bbox[2] - name_bbox[0]
+        
+        # Calculate the x-coordinate to center the text name
+        center_x = ((198 - name_width) / 2)
+        draw.text((center_x, 260), wrapped_name.title(), font=name_font, fill='black')
+        
+        return template
     
-    template.paste(preprocessed_pic, (27, 113, 171, 258))
-    template.paste(qr, (497, 109, 658, 268))
-    
-    draw = ImageDraw.Draw(template)
-    font = ImageFont.truetype("arial.ttf", size=18)  # Adjust the font path as needed
-    
-    wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
-    draw.text((311, 121), wrapped_div, font=font, fill='black')
-    draw.text((200, 356), data['University '], font=font, fill='black')
-    
-    division_input = data['Division/Section']
-    head_name = get_head_by_division(division_input)
-    
-    wrapped_supri = textwrap.fill(str(head_name), width=20).title()
-    draw.text((311, 170), wrapped_supri.title(), font=font, fill='black')
-    
-    draw.text((305, 219), data['Internship Start Date'], font=font, fill='black')
-    draw.text((303, 266), data['Internship End Date'], font=font, fill='black')
-    draw.text((300, 312), str(data['Mobile']), font=font, fill='black')
-    draw.text((621, 283), str(data['ID']), font=font, fill='black')
-
-    # Adjusted for name wrapping
-    name_font = ImageFont.truetype("arial.ttf", size=18)  # Adjust the font path as needed
-    wrapped_name = center_align_text_wrapper(data['Name'], width=22)
-    
-    # Get the text size using ImageFont.textbbox()
-    name_bbox = name_font.getbbox(wrapped_name)
-    name_width = name_bbox[2] - name_bbox[0]
-    
-    # Calculate the x-coordinate to center the text name
-    center_x = ((198 - name_width) / 2 )
-    draw.text((center_x, 260), wrapped_name.title(), font=name_font, fill='black')
-    
-    return template
+    except Exception as e:
+        st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
+        return None
 
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
