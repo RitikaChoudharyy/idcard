@@ -29,7 +29,6 @@ def preprocess_image(image_path):
         final_image = input_image.convert("RGB")
     
     return final_image
-
 # Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
     if not os.path.exists(template_path):
@@ -67,34 +66,32 @@ def generate_card(data, template_path, image_folder, qr_folder):
         template.paste(qr, (497, 109, 658, 268))
         
         draw = ImageDraw.Draw(template)
-        name_font = ImageFont.truetype(font_path, size=18)
-        name_font = ImageFont.truetype("C:\\WINDOWS\\FONTS\\ARIAL.TTF", size=18)
-
+        
+        # Load Arial font with fallback to default system font
+        try:
+            font_path = "C:\\WINDOWS\\FONTS\\ARIAL.TTF"
+            name_font = ImageFont.truetype(font_path, size=18)
+        except IOError:
+            name_font = ImageFont.load_default()  # Fallback to default font if Arial is not available
+        
         font_size = 18
         
-        # Attempt to load Arial font, fallback to default system font if not found
-        try:
-            font = ImageFont.truetype(font_path, size=font_size)
-        except IOError:
-            font = ImageFont.load_default()  # Fallback to default font if Arial is not available
-        
         wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
-        draw.text((311, 121), wrapped_div, font=font, fill='black')
-        draw.text((200, 356), data['University '], font=font, fill='black')
+        draw.text((311, 121), wrapped_div, font=name_font, fill='black')
+        draw.text((200, 356), data['University '], font=name_font, fill='black')
         
         division_input = data['Division/Section']
         head_name = get_head_by_division(division_input)
         
         wrapped_supri = textwrap.fill(str(head_name), width=20).title()
-        draw.text((311, 170), wrapped_supri.title(), font=font, fill='black')
+        draw.text((311, 170), wrapped_supri, font=name_font, fill='black')
         
-        draw.text((305, 219), data['Internship Start Date'], font=font, fill='black')
-        draw.text((303, 266), data['Internship End Date'], font=font, fill='black')
-        draw.text((300, 312), str(data['Mobile']), font=font, fill='black')
-        draw.text((621, 283), str(data['ID']), font=font, fill='black')
+        draw.text((305, 219), data['Internship Start Date'], font=name_font, fill='black')
+        draw.text((303, 266), data['Internship End Date'], font=name_font, fill='black')
+        draw.text((300, 312), str(data['Mobile']), font=name_font, fill='black')
+        draw.text((621, 283), str(data['ID']), font=name_font, fill='black')
         
         # Adjusted for name wrapping
-        name_font = ImageFont.truetype(C:\WINDOWS\FONTS\ARIAL.TTF, size=18)  # Adjust the font path and size as needed
         wrapped_name = center_align_text_wrapper(data['Name'], width=22)
         
         # Get the text size using ImageFont.textbbox()
@@ -103,7 +100,7 @@ def generate_card(data, template_path, image_folder, qr_folder):
         
         # Calculate the x-coordinate to center the text name
         center_x = ((198 - name_width) / 2)
-        draw.text((center_x, 260), wrapped_name.title(), font=name_font, fill='black')
+        draw.text((center_x, 260), wrapped_name, font=name_font, fill='black')
         
         return template
     
