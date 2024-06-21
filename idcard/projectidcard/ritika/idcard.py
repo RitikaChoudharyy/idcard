@@ -159,6 +159,7 @@ def create_pdf(images, pdf_path):
     pdf.output(pdf_path)
     return pdf_path
 
+
 # Function to display the PDF in Streamlit
 def display_pdf(pdf_path):
     doc = fitz.open(pdf_path)
@@ -176,23 +177,30 @@ def display_pdf(pdf_path):
         file_name="generated_id_cards.pdf",
         mime="application/pdf"
     )
+    print_js = """
+    <script>
+        // Your JavaScript code here
+        console.log("Hello from JavaScript!");
+    </script>
+    """
+    st.markdown(print_js, unsafe_allow_html=True)
 
     # Display ID card images directly
     for page in doc:
         for img in page.get_images(full=True):
             xref = img[0]
             base_image = doc.extract_image(xref)
+            image_bytes = base64.b64encode(base_image["image"])
             st.image(base_image["image"], caption="Generated ID Card")
 
 # Main Streamlit app
 def main():
     st.title("Automatic ID Card Generation")
     
-    # Hardcoded paths (adjust as per your actual folder structure)
-    template_path = r"C:\Users\Shree\Desktop\ST.png"
-    image_folder = r"C:\Users\Shree\Desktop\idcard\projectidcard\ritika\downloaded_image"
-    qr_folder = r"C:\Users\Shree\Desktop\idcard\projectidcard\ritika\ST_output_qr_codes"
-    output_pdf_path = r"C:\Users\Shree\Desktop\generated_id_cards.pdf"
+    template_path = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST.png"
+    image_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\downloaded_images"
+    qr_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST_output_qr_codes"
+    output_pdf_path = "C:\\Users\\Shree\\Desktop\\generated_id_cards.pdf"
 
     # File uploader for CSV files
     uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
@@ -206,6 +214,7 @@ def main():
 
         # Display the uploaded data
         st.write("Uploaded CSV file:")
+        edited_data = st.data_editor(df)
         st.write(df)
 
         # Get student ID for individual ID card generation
@@ -229,17 +238,17 @@ def main():
         # Button to generate ID cards for all students
         if st.button("Generate ID Cards for All Students"):
             images = []
-            records = df.to_dict(orient='records')
+            records = edited_data.to_dict(orient='records')
             for record in records:
                 card = generate_card(record, template_path, image_folder, qr_folder)
                 if card:
                     images.append(card)
 
-            if images:
-                # Create and display the PDF
-                pdf_path = create_pdf(images, output_pdf_path)
-                st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
-                display_pdf(pdf_path)
+            # Create and display the PDF
+            pdf_path = create_pdf(images, output_pdf_path)
+            st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
+            display_pdf(pdf_path)
 
 if __name__ == "__main__":
     main()
+
