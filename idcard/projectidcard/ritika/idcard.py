@@ -198,9 +198,9 @@ def main():
     st.title("Automatic ID Card Generation")
     
     template_path = r"C:\Users\Shree\Desktop\idcard\projectidcard\ritika\ST.png"
-    image_folder =r"C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\downloaded_images"
-    qr_folder = r"C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST_output_qr_codes"
-    output_pdf_path = r"C:\\Users\\Shree\\Desktop\\generated_id_cards.pdf"
+    image_folder = r"C:\Users\Shree\Desktop\idcard\projectidcard\ritika\downloaded_images"
+    qr_folder = r"C:\Users\Shree\Desktop\idcard\projectidcard\ritika\ST_output_qr_codes"
+    output_pdf_path = r"C:\Users\Shree\Desktop\generated_id_cards.pdf"
 
     # File uploader for CSV files
     uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
@@ -235,28 +235,19 @@ def main():
             else:
                 st.error("Please enter a Student ID")
 
-# Button to generate ID card for a specific student
-if st.button("Generate Individual ID Card") and student_id:
-    filtered_data = df[df['ID'] == student_id]
-    
-    if filtered_data.empty:
-        st.warning(f"No data found for Student ID: {student_id}")
-    else:
-        st.success(f"Generating ID card for Student ID: {student_id}")
-        generated_cards = []
+        # Button to generate ID cards for all students
+        if st.button("Generate ID Cards for All Students"):
+            images = []
+            records = edited_data.to_dict(orient='records')
+            for record in records:
+                card = generate_card(record, template_path, image_folder, qr_folder)
+                if card:
+                    images.append(card)
 
-        for index, row in filtered_data.iterrows():
-            generated_card = generate_card(row, template_path, image_folder, qr_folder)
-            generated_cards.append(generated_card)
-            st.image(generated_card, caption=f"Generated ID Card for {row['Name']}", use_column_width=True)
-
-        # Button to download all generated ID cards as PDF
-        if st.button("Download All ID Cards as PDF"):
-            pdf_path = create_pdf(generated_cards, output_pdf_path)
-            st.success(f"PDF with all generated ID cards saved at: {pdf_path}")
+            # Create and display the PDF
+            pdf_path = create_pdf(images, output_pdf_path)
+            st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
             display_pdf(pdf_path)
-
 
 if __name__ == "__main__":
     main()
-
