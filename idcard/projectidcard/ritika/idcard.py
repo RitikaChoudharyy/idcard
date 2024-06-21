@@ -6,28 +6,35 @@ import textwrap
 from fpdf import FPDF
 import fitz  # PyMuPDF
 import base64
-from rembg import remove  # Assuming this library is correctly installed
 
-# Function to preprocess image (remove background and convert to RGB)
+# Check if rembg can be imported, otherwise handle the error gracefully
+try:
+    from rembg import remove  # Assuming this library is correctly installed
+    REMBG_AVAILABLE = True
+except ImportError:
+    REMBG_AVAILABLE = False
+    st.warning("Background removal library 'rembg' is not available. ID cards will be generated without background removal.")
+
+# Function to preprocess image (remove background and convert to RGB), handle if rembg is not available
 def preprocess_image(image_path):
     input_image = Image.open(image_path)
-    output_image = remove(input_image)
-
-    # Convert the background to white
-    white_bg = Image.new("RGBA", output_image.size, "WHITE")
-    final_image = Image.alpha_composite(white_bg, output_image)
-
-    # Convert to RGB mode
-    final_image = final_image.convert("RGB")
-
+    
+    if REMBG_AVAILABLE:
+        output_image = remove(input_image)
+        # Convert the background to white
+        white_bg = Image.new("RGBA", output_image.size, "WHITE")
+        final_image = Image.alpha_composite(white_bg, output_image)
+    else:
+        # Convert the image to RGB mode without background removal
+        final_image = input_image.convert("RGB")
+    
     return final_image
 
 # Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
-    # Check if the template path is correct
     if not os.path.exists(template_path):
         st.error(f"Template image not found at the specified location: {template_path}")
-        return None
+        st.stop()
     
     pic_id = str(data.get('ID', ''))
     if not pic_id:
@@ -184,7 +191,6 @@ def display_pdf(pdf_path):
             base_image = doc.extract_image(xref)
             image_bytes = base64.b64encode(base_image["image"])
             st.image(base_image["image"], caption="Generated ID Card")
-
 # Main Streamlit app
 def main():
     st.title("Automatic ID Card Generation")
