@@ -1,17 +1,14 @@
-#this is the code of removing background 
 import streamlit as st
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageFont
 import pandas as pd
 import os
 import textwrap
 from fpdf import FPDF
-import fitz
-from io import BytesIO
+import fitz  # PyMuPDF
 import base64
-import cv2
-import numpy as np
-from rembg import remove
-from PIL import Image
+from rembg import remove  # Assuming this library is correctly installed
+
+# Function to preprocess image (remove background and convert to RGB)
 def preprocess_image(image_path):
     input_image = Image.open(image_path)
     output_image = remove(input_image)
@@ -24,15 +21,13 @@ def preprocess_image(image_path):
     final_image = final_image.convert("RGB")
 
     return final_image
-# Title with image
-image = Image.open("logo.jpg.png")
-st.image(image, use_column_width=True)
 
-
+# Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
+    st.write(f"Checking template path: {template_path}")
     if not os.path.exists(template_path):
-        st.error("Template image not found at the specified location.")
-        return None
+        st.error(f"Template image not found at the specified location: {template_path}")
+        st.stop()
     
     pic_id = str(data.get('ID', ''))
     if not pic_id:
@@ -90,10 +85,6 @@ def generate_card(data, template_path, image_folder, qr_folder):
     draw.text((center_x, 260), wrapped_name.title(), font=name_font, fill='black')
     
     return template
-
-
-
-    
 
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
@@ -168,6 +159,7 @@ def create_pdf(images, pdf_path):
     pdf.output(pdf_path)
     return pdf_path
 
+
 # Function to display the PDF in Streamlit
 def display_pdf(pdf_path):
     doc = fitz.open(pdf_path)
@@ -205,10 +197,10 @@ def display_pdf(pdf_path):
 def main():
     st.title("Automatic ID Card Generation")
     
-    template_path = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST.png"
-    image_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\downloaded_images"
-    qr_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST_output_qr_codes"
-    output_pdf_path = "C:\\Users\\Shree\\Desktop\\generated_id_cards.pdf"
+    template_path = r"C:\Users\Shree\Desktop\idcard\projectidcard\ritika\ST.png"
+    image_folder = r"C:\Users\Shree\Desktop\idcard\projectidcard\ritika\downloaded_images"
+    qr_folder = r"C:\Users\Shree\Desktop\idcard\projectidcard\ritika\ST_output_qr_codes"
+    output_pdf_path = r"C:\Users\Shree\Desktop\generated_id_cards.pdf"
 
     # File uploader for CSV files
     uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
@@ -259,4 +251,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
