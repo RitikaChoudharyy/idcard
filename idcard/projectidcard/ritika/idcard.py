@@ -206,7 +206,7 @@ def main():
 
         # Display the uploaded data
         st.write("Uploaded CSV file:")
-        edited_data = st.dataframe(df)  # Using dataframe instead of data_editor for simplicity
+        edited_data = st.data_editor(df)
         st.write(df)
 
         # Button to generate ID cards for all students
@@ -214,15 +214,15 @@ def main():
             images = []
             records = edited_data.to_dict(orient='records')
             for record in records:
-                                card = generate_card(record, template_path, image_folder, qr_folder)
-        if card:
-                    images.append(card)
+                card = generate_card(record, template_path, image_folder, qr_folder)
+                if card:
+                images.append(card)
 
             # Create and display the PDF
             pdf_path = create_pdf(images, output_pdf_path)
             st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
             display_pdf(pdf_path)
 
+# Run the Streamlit app
 if __name__ == "__main__":
     main()
-
