@@ -158,7 +158,6 @@ def create_pdf(images, pdf_path):
     pdf.output(pdf_path)
     return pdf_path
 
-
 # Function to display the PDF in Streamlit
 def display_pdf(pdf_path):
     doc = fitz.open(pdf_path)
@@ -207,19 +206,15 @@ def main():
 
         # Display the uploaded data
         st.write("Uploaded CSV file:")
-        edited_data = st.data_editor(df)
+        edited_data = st.dataframe(df)  # Using dataframe instead of data_editor for simplicity
         st.write(df)
 
-        # Get student ID for individual ID card generation
-        student_id = st.text_input("Enter Student ID for Individual ID Card Generation")
-
-        # Button to generate ID card for a specific student
-# Button to generate ID cards for all students
+        # Button to generate ID cards for all students
         if st.button("Generate ID Cards for All Students"):
             images = []
             records = edited_data.to_dict(orient='records')
             for record in records:
-                card = generate_card(record, template_path, image_folder, qr_folder)
+                                card = generate_card(record, template_path, image_folder, qr_folder)
                 if card:
                     images.append(card)
 
@@ -231,4 +226,3 @@ def main():
 if __name__ == "__main__":
     main()
 
-        
