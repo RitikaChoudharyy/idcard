@@ -207,6 +207,7 @@ def display_pdf(pdf_path):
             base_image = doc.extract_image(xref)
             image_bytes = base64.b64encode(base_image["image"])
             st.image(base_image["image"], caption="Generated ID Card")
+
 # Main Streamlit app
 def main():
     st.title("Automatic ID Card Generation")
@@ -263,6 +264,31 @@ def main():
             pdf_path = create_pdf(images, output_pdf_path)
             st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
             display_pdf(pdf_path)
+
+        # Text input for comma-separated IDs
+        ids_input = st.text_area("Enter comma-separated Student IDs for Batch Generation")
+
+        # Button to generate ID cards for the specified IDs
+        if st.button("Generate ID Cards for Specified IDs"):
+            if ids_input:
+                ids = [id.strip() for id in ids_input.split(",")]
+                specified_data = df[df['ID'].isin(ids)]
+                if not specified_data.empty:
+                    images = []
+                    records = specified_data.to_dict(orient='records')
+                    for record in records:
+                        card = generate_card(record, template_path, image_folder, qr_folder)
+                        if card:
+                            images.append(card)
+
+                    # Create and display the PDF
+                    pdf_path = create_pdf(images, output_pdf_path)
+                    st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
+                    display_pdf(pdf_path)
+                else:
+                    st.error("No students found with the specified IDs")
+            else:
+                st.error("Please enter at least one Student ID")
 
 if __name__ == "__main__":
     main()
