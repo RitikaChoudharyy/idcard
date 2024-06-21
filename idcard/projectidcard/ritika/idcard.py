@@ -215,21 +215,20 @@ def main():
                     st.error(f"No student found with ID: {student_id}")
             else:
                 st.error("Please enter a Student ID")
-
-        # Button to generate ID cards for all students
-        # Button to generate ID cards for all students
-        if st.button("Generate ID Cards for All Students"):
-              images = []
-              for _, data_row in df.iterrows():
-                  card = generate_card(data_row, template_path, image_folder, qr_folder, font_path)
-                     if card:
-                       images.append(card)
+         # Button to generate ID cards for all students
+if st.button("Generate ID Cards for All Students"):
+    images = []
+    for _, data_row in df.iterrows():
+        card = generate_card(data_row, template_path, image_folder, qr_folder, font_path)
+        if card:
+            images.append(card)
 
     # Create and display the PDF
-             pdf_path = create_pdf(images, output_pdf_path)
-             st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
-             display_pdf(pdf_path)
+    pdf_path = create_pdf(images, output_pdf_path)
+    st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
+    display_pdf(pdf_path)
 
 if __name__ == "__main__":
     main()
+
 
