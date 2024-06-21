@@ -1,7 +1,7 @@
 streamlit
 Pillow
 pandas
-fpdf
+fpdf2
 PyMuPDF
 opencv-python
 numpy
