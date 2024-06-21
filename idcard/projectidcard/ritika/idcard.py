@@ -6,8 +6,6 @@ import textwrap
 from fpdf import FPDF
 import fitz  # PyMuPDF
 import base64
-
-
 # Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
     if not os.path.exists(template_path):
@@ -36,6 +34,16 @@ def generate_card(data, template_path, image_folder, qr_folder):
     except Exception as e:
         st.error(f"Error preprocessing image for ID: {pic_id}. Error: {str(e)}")
         return None
+
+    # Function to preprocess image (remove background and convert to RGB)
+    def preprocess_image(image_path):
+        input_image = Image.open(image_path)
+        
+        # Convert the image to RGB mode and fill the background with white
+        final_image = Image.new("RGB", input_image.size, "WHITE")
+        final_image.paste(input_image, mask=input_image.split()[3])  # Paste with alpha channel
+        
+        return final_image
 
     try:
         template = Image.open(template_path)
@@ -86,6 +94,7 @@ def generate_card(data, template_path, image_folder, qr_folder):
     except Exception as e:
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
+
 
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
