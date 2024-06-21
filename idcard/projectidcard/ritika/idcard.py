@@ -175,15 +175,6 @@ def display_pdf(pdf_path):
         file_name="generated_id_cards.pdf",
         mime="application/pdf"
     )
-
-    # Display ID card images directly
-    for page in doc:
-        for img in page.get_images(full=True):
-            xref = img[0]
-            base_image = doc.extract_image(xref)
-            image_bytes = base64.b64encode(base_image["image"])
-            st.image(base_image["image"], caption="Generated ID Card")
-
 # Main Streamlit app
 def main():
     st.title("Automatic ID Card Generation")
@@ -215,7 +206,7 @@ def main():
             for record in records:
                 card = generate_card(record, template_path, image_folder, qr_folder)
                 if card:
-                images.append(card)
+                    images.append(card)  # Correct indentation here
 
             # Create and display the PDF
             pdf_path = create_pdf(images, output_pdf_path)
@@ -225,3 +216,4 @@ def main():
 # Run the Streamlit app
 if __name__ == "__main__":
     main()
+
