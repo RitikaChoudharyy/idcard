@@ -27,7 +27,7 @@ def generate_card(data, template_path, image_folder, qr_folder):
     # Check if the template path is correct
     if not os.path.exists(template_path):
         st.error(f"Template image not found at the specified location: {template_path}")
-        return None
+        st.stop()
     
     pic_id = str(data.get('ID', ''))
     if not pic_id:
@@ -182,7 +182,6 @@ def display_pdf(pdf_path):
         for img in page.get_images(full=True):
             xref = img[0]
             base_image = doc.extract_image(xref)
-            image_bytes = base64.b64encode(base_image["image"])
             st.image(base_image["image"], caption="Generated ID Card")
 
 # Main Streamlit app
@@ -194,6 +193,11 @@ def main():
     image_folder = r"C:\Users\Shree\Desktop\idcard\projectidcard\ritika\downloaded_image"
     qr_folder = r"C:\Users\Shree\Desktop\idcard\projectidcard\ritika\ST_output_qr_codes"
     output_pdf_path = r"C:\Users\Shree\Desktop\generated_id_cards.pdf"
+
+    # Check if template exists
+    if not os.path.exists(template_path):
+        st.error(f"Template image not found at the specified location: {template_path}")
+        st.stop()
 
     # File uploader for CSV files
     uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
@@ -210,37 +214,25 @@ def main():
         edited_data = st.data_editor(df)
         st.write(df)
 
-        # Get student ID for individual ID card generation
-        student_id = st.text_input("Enter Student ID for Individual ID Card Generation")
+        # Get the number of rows in the uploaded CSV file
+        num_rows = df.shape[0]
+        st.write(f"Number of rows in the uploaded CSV file: {num_rows}")
 
-        # Button to generate ID card for a specific student
-        if st.button("Generate ID Card for Individual Student"):
-            if student_id:
-                student_data = df[df['ID'] == student_id]
-                if not student_data.empty:
-                    card = generate_card(student_data.iloc[0], template_path, image_folder, qr_folder)
-                    if card:
-                        pdf_path = create_pdf([card], output_pdf_path)
-                        st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
-                        display_pdf(pdf_path)
-                else:
-                    st.error(f"No student found with ID: {student_id}")
-            else:
-                st.error("Please enter a Student ID")
+        generated_cards = []
 
-        # Button to generate ID cards for all students
-        if st.button("Generate ID Cards for All Students"):
-            images = []
-            records = edited_data.to_dict(orient='records')
-            for record in records:
-                card = generate_card(record, template_path, image_folder, qr_folder)
-                if card:
-                    images.append(card)
+        # Iterate through each row in the DataFrame
+        for index, row in df.iterrows():
+            id_card = generate_card(row, template_path, image_folder, qr_folder)
+            if id_card:
+                generated_cards.append(id_card)
 
-            # Create and display the PDF
-            pdf_path = create_pdf(images, output_pdf_path)
-            st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
-            display_pdf(pdf_path)
+        if generated_cards:
+            # Save the generated ID cards to a PDF
+            create_pdf(generated_cards, output_pdf_path)
 
+            # Display and download the PDF
+            display_pdf(output_pdf_path)
+
+# Run the Streamlit app
 if __name__ == "__main__":
     main()
