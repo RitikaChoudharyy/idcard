@@ -1,19 +1,24 @@
 import streamlit as st
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 import pandas as pd
 import os
 import textwrap
 from fpdf import FPDF
-import fitz  # PyMuPDF
+import fitz
+from io import BytesIO
 import base64
+import cv2
+import numpy as np
+from rembg import remove
+from PIL import Image
 
 # Import rembg for background removal if available
-#try:
-    #from rembg import remove  # Assuming this library is correctly installed
-    #REMBG_AVAILABLE = True
-#except ImportError:
-    #REMBG_AVAILABLE = False
-    #st.warning("Background removal library 'rembg' is not available. ID cards will be generated without background removal.")
+try:
+    from rembg import remove  # Assuming this library is correctly installed
+    REMBG_AVAILABLE = True
+except ImportError:
+    REMBG_AVAILABLE = False
+    st.warning("Background removal library 'rembg' is not available. ID cards will be generated without background removal.")
 
 # Function to preprocess image (remove background and convert to RGB), handle if rembg is not available
 def preprocess_image(image_path):
@@ -207,6 +212,7 @@ def display_pdf(pdf_path):
             base_image = doc.extract_image(xref)
             image_bytes = base64.b64encode(base_image["image"])
             st.image(base_image["image"], caption="Generated ID Card")
+
 # Main Streamlit app
 def main():
     st.title("Automatic ID Card Generation")
@@ -235,42 +241,59 @@ def main():
         # Get student ID for individual ID card generation
         student_id = st.text_input("Enter Student ID for Individual ID Card Generation")
 
-        # Text input for comma-separated IDs
-        ids_input = st.text_area("Enter comma-separated Student IDs for Batch Generation")
-
-        # Button to generate ID cards for both individual and comma-separated IDs
-        if st.button("Generate ID Cards"):
-            images = []
-
-            # Generate card for individual student ID
+        # Button to generate ID card for a specific student
+        if st.button("Generate ID Card for Individual Student"):
             if student_id:
                 student_data = df[df['ID'] == student_id]
                 if not student_data.empty:
                     card = generate_card(student_data.iloc[0], template_path, image_folder, qr_folder)
                     if card:
-                        images.append(card)
+                        pdf_path = create_pdf([card], output_pdf_path)
+                        st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
+                        display_pdf(pdf_path)
                 else:
                     st.error(f"No student found with ID: {student_id}")
+            else:
+                st.error("Please enter a Student ID")
 
-            # Generate cards for comma-separated IDs
+        # Button to generate ID cards for all students
+        if st.button("Generate ID Cards for All Students"):
+            images = []
+            records = edited_data.to_dict(orient='records')
+            for record in records:
+                card = generate_card(record, template_path, image_folder, qr_folder)
+                if card:
+                    images.append(card)
+
+            # Create and display the PDF
+            pdf_path = create_pdf(images, output_pdf_path)
+            st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
+            display_pdf(pdf_path)
+
+        # Text input for comma-separated IDs
+        ids_input = st.text_area("Enter comma-separated Student IDs for Batch Generation")
+
+        # Button to generate ID cards for the specified IDs
+        if st.button("Generate ID Cards for Specified IDs"):
             if ids_input:
                 ids = [id.strip() for id in ids_input.split(",")]
                 specified_data = df[df['ID'].isin(ids)]
                 if not specified_data.empty:
-                    for record in specified_data.to_dict(orient='records'):
+                    images = []
+                    records = specified_data.to_dict(orient='records')
+                    for record in records:
                         card = generate_card(record, template_path, image_folder, qr_folder)
                         if card:
                             images.append(card)
+
+                    # Create and display the PDF
+                    pdf_path = create_pdf(images, output_pdf_path)
+                    st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
+                    display_pdf(pdf_path)
                 else:
                     st.error("No students found with the specified IDs")
-
-            # Create and display the PDF if images are generated
-            if images:
-                pdf_path = create_pdf(images, output_pdf_path)
-                st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
-                display_pdf(pdf_path)
             else:
-                st.error("No students found with the specified IDs or Student ID input is empty")
+                st.error("Please enter at least one Student ID")
 
 if __name__ == "__main__":
     main()
