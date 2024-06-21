@@ -1,16 +1,12 @@
 import streamlit as st
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageFont
 import pandas as pd
 import os
 import textwrap
 from fpdf import FPDF
-import fitz
-from io import BytesIO
+import fitz  # PyMuPDF
 import base64
-import cv2
-import numpy as np
-from rembg import remove
-from PIL import Image
+import rembg
 
 # Import rembg for background removal if available
 try:
