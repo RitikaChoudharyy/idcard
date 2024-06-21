@@ -7,3 +7,7 @@ opencv-python
 numpy
 rembg
 textwrap3
+plotly
+yfinance
+pandas-datareader
+prophet
