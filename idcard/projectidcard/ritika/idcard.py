@@ -6,9 +6,9 @@ import textwrap
 from fpdf import FPDF
 import fitz  # PyMuPDF
 import base64
-from rembg import remove  # assuming this library is correctly installed
+from rembg import remove  # Assuming this library is correctly installed
 
-
+# Function to preprocess image (remove background and convert to RGB)
 def preprocess_image(image_path):
     input_image = Image.open(image_path)
     output_image = remove(input_image)
@@ -22,22 +22,23 @@ def preprocess_image(image_path):
 
     return final_image
 
-
+# Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
+    # Check if the template path is correct
     if not os.path.exists(template_path):
-        st.error("Template image not found at the specified location.")
+        st.error(f"Template image not found at the specified location: {template_path}")
         return None
-
+    
     pic_id = str(data.get('ID', ''))
     if not pic_id:
         st.warning(f"Skipping record with missing ID: {data}")
         return None
-
+    
     pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
     if not os.path.exists(pic_path):
         st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
         return None
-
+    
     qr_path = os.path.join(qr_folder, f"{pic_id}.png")
     if not os.path.exists(qr_path):
         st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
@@ -49,42 +50,41 @@ def generate_card(data, template_path, image_folder, qr_folder):
 
     template = Image.open(template_path)
     qr = Image.open(qr_path).resize((161, 159))
-
+    
     template.paste(preprocessed_pic, (27, 113, 171, 258))
     template.paste(qr, (497, 109, 658, 268))
-
+    
     draw = ImageDraw.Draw(template)
     font = ImageFont.truetype("arial.ttf", size=18)  # Adjust the font path as needed
-
+    
     wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
     draw.text((311, 121), wrapped_div, font=font, fill='black')
-    draw.text((200, 356), str(data['University ']), font=font, fill='black')
-
+    draw.text((200, 356), data['University '], font=font, fill='black')
+    
     division_input = data['Division/Section']
     head_name = get_head_by_division(division_input)
-
+    
     wrapped_supri = textwrap.fill(str(head_name), width=20).title()
-    draw.text((311, 170), wrapped_supri, font=font, fill='black')
-
-    draw.text((305, 219), str(data['Internship Start Date']), font=font, fill='black')
-    draw.text((303, 266), str(data['Internship End Date']), font=font, fill='black')
+    draw.text((311, 170), wrapped_supri.title(), font=font, fill='black')
+    
+    draw.text((305, 219), data['Internship Start Date'], font=font, fill='black')
+    draw.text((303, 266), data['Internship End Date'], font=font, fill='black')
     draw.text((300, 312), str(data['Mobile']), font=font, fill='black')
     draw.text((621, 283), str(data['ID']), font=font, fill='black')
 
     # Adjusted for name wrapping
     name_font = ImageFont.truetype("arial.ttf", size=18)  # Adjust the font path as needed
     wrapped_name = center_align_text_wrapper(data['Name'], width=22)
-
+    
     # Get the text size using ImageFont.textbbox()
     name_bbox = name_font.getbbox(wrapped_name)
     name_width = name_bbox[2] - name_bbox[0]
-
+    
     # Calculate the x-coordinate to center the text name
-    center_x = ((198 - name_width) / 2)
-    draw.text((center_x, 260), wrapped_name, font=name_font, fill='black')
-
+    center_x = ((198 - name_width) / 2 )
+    draw.text((center_x, 260), wrapped_name.title(), font=name_font, fill='black')
+    
     return template
-
 
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
@@ -105,7 +105,6 @@ def center_align_text_wrapper(text, width=15):
     centered_text = "\n".join(centered_lines)
 
     return centered_text
-
 
 # Function to get the head by division
 def get_head_by_division(division_name):
@@ -129,16 +128,15 @@ def get_head_by_division(division_name):
     else:
         return "Division not found or head information not available."
 
-
 # Function to create a PDF from the generated ID cards
 def create_pdf(images, pdf_path):
     pdf = FPDF()
     cards_per_page = 8  # 2x4 grid
     num_pages = -(-len(images) // cards_per_page)  # Ceiling division to get the number of pages needed
-
+    
     for page_num in range(num_pages):
         pdf.add_page()
-
+        
         for i in range(cards_per_page):
             card_index = page_num * cards_per_page + i
             if card_index < len(images):
@@ -148,19 +146,18 @@ def create_pdf(images, pdf_path):
                 if card.mode == 'RGBA':
                     card = card.convert('RGB')
                 card.save(temp_image_path)
-
+                
                 # Calculate x, y position for each card in the grid
                 col = i % 4
                 row = i // 4
                 x_offset = col * (pdf.w / 4 - 10)
                 y_offset = row * (pdf.h / 2 - 10)
-
+                
                 pdf.image(temp_image_path, x=5 + x_offset, y=5 + y_offset, w=pdf.w / 4 - 10)
                 os.remove(temp_image_path)
-
+    
     pdf.output(pdf_path)
     return pdf_path
-
 
 # Function to display the PDF in Streamlit
 def display_pdf(pdf_path):
@@ -188,15 +185,15 @@ def display_pdf(pdf_path):
             image_bytes = base64.b64encode(base_image["image"])
             st.image(base_image["image"], caption="Generated ID Card")
 
-
 # Main Streamlit app
 def main():
     st.title("Automatic ID Card Generation")
-
-    template_path = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST.png"
-    image_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\downloaded_images"
-    qr_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST_output_qr_codes"
-    output_pdf_path = "C:\\Users\\Shree\\Desktop\\generated_id_cards.pdf"
+    
+    # Hardcoded paths (adjust as per your actual folder structure)
+    template_path = r"C:\Users\Shree\Desktop\idcard\projectidcard\ritika\ST.png"
+    image_folder = r"C:\Users\Shree\Desktop\idcard\projectidcard\ritika\downloaded_image"
+    qr_folder = r"C:\Users\Shree\Desktop\idcard\projectidcard\ritika\ST_output_qr_codes"
+    output_pdf_path = r"C:\Users\Shree\Desktop\generated_id_cards.pdf"
 
     # File uploader for CSV files
     uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
@@ -210,10 +207,29 @@ def main():
 
         # Display the uploaded data
         st.write("Uploaded CSV file:")
-        edited_data = st.dataframe(df)
+        edited_data = st.data_editor(df)
+        st.write(df)
 
-        # Button to generate ID cards
-        if st.button("Generate ID Cards"):
+        # Get student ID for individual ID card generation
+        student_id = st.text_input("Enter Student ID for Individual ID Card Generation")
+
+        # Button to generate ID card for a specific student
+        if st.button("Generate ID Card for Individual Student"):
+            if student_id:
+                student_data = df[df['ID'] == student_id]
+                if not student_data.empty:
+                    card = generate_card(student_data.iloc[0], template_path, image_folder, qr_folder)
+                    if card:
+                        pdf_path = create_pdf([card], output_pdf_path)
+                        st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
+                        display_pdf(pdf_path)
+                else:
+                    st.error(f"No student found with ID: {student_id}")
+            else:
+                st.error("Please enter a Student ID")
+
+        # Button to generate ID cards for all students
+        if st.button("Generate ID Cards for All Students"):
             images = []
             records = edited_data.to_dict(orient='records')
             for record in records:
@@ -225,7 +241,6 @@ def main():
             pdf_path = create_pdf(images, output_pdf_path)
             st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
             display_pdf(pdf_path)
-
 
 if __name__ == "__main__":
     main()
