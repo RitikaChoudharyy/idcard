@@ -16,7 +16,10 @@ import base64
     #st.warning("Background removal library 'rembg' is not available. ID cards will be generated without background removal.")
 
 # Function to preprocess image (remove background and convert to RGB), handle if rembg is not available
+# Function to preprocess image (remove background and convert to RGB), handle if rembg is not available
 def preprocess_image(image_path):
+    global REMBG_AVAILABLE  # Declare REMBG_AVAILABLE as global
+    
     input_image = Image.open(image_path)
     
     if REMBG_AVAILABLE:
@@ -29,6 +32,7 @@ def preprocess_image(image_path):
         final_image = input_image.convert("RGB")
     
     return final_image
+
 # Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
     if not os.path.exists(template_path):
