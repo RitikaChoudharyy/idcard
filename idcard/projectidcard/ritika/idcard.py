@@ -24,7 +24,6 @@ def preprocess_image(image_path):
 
 # Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
-    st.write(f"Checking template path: {template_path}")
     if not os.path.exists(template_path):
         st.error(f"Template image not found at the specified location: {template_path}")
         st.stop()
@@ -177,13 +176,6 @@ def display_pdf(pdf_path):
         file_name="generated_id_cards.pdf",
         mime="application/pdf"
     )
-    print_js = """
-    <script>
-        // Your JavaScript code here
-        console.log("Hello from JavaScript!");
-    </script>
-    """
-    st.markdown(print_js, unsafe_allow_html=True)
 
     # Display ID card images directly
     for page in doc:
@@ -197,6 +189,7 @@ def display_pdf(pdf_path):
 def main():
     st.title("Automatic ID Card Generation")
     
+    # Define paths
     template_path = r"C:\Users\Shree\Desktop\idcard\projectidcard\ritika\ST.png"
     image_folder = r"C:\Users\Shree\Desktop\idcard\projectidcard\ritika\downloaded_images"
     qr_folder = r"C:\Users\Shree\Desktop\idcard\projectidcard\ritika\ST_output_qr_codes"
@@ -221,21 +214,7 @@ def main():
         student_id = st.text_input("Enter Student ID for Individual ID Card Generation")
 
         # Button to generate ID card for a specific student
-        if st.button("Generate ID Card for Individual Student"):
-            if student_id:
-                student_data = df[df['ID'] == student_id]
-                if not student_data.empty:
-                    card = generate_card(student_data.iloc[0], template_path, image_folder, qr_folder)
-                    if card:
-                        pdf_path = create_pdf([card], output_pdf_path)
-                        st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
-                        display_pdf(pdf_path)
-                else:
-                    st.error(f"No student found with ID: {student_id}")
-            else:
-                st.error("Please enter a Student ID")
-
-        # Button to generate ID cards for all students
+# Button to generate ID cards for all students
         if st.button("Generate ID Cards for All Students"):
             images = []
             records = edited_data.to_dict(orient='records')
@@ -251,3 +230,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+        
