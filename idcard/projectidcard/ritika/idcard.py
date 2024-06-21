@@ -206,8 +206,7 @@ def main():
 
         # Display the uploaded data
         st.write("Uploaded CSV file:")
-        edited_data = st.data_editor(df)
-        st.write(df)
+        edited_data = st.dataframe(df)  # Use st.dataframe to display the DataFrame
 
         # Button to generate ID cards for all students
         if st.button("Generate ID Cards for All Students"):
