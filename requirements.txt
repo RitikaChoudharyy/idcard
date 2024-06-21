@@ -1,11 +1,9 @@
-
 streamlit
 Pillow
 pandas
-fpdf2
+fpdf
 PyMuPDF
-rembg
-numpy
 opencv-python
-
-
+numpy
+rembg
+textwrap3
