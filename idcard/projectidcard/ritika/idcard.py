@@ -23,6 +23,7 @@ def preprocess_image(image_path):
     return final_image
 
 # Function to generate ID card
+# Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
     st.write(f"Checking template path: {template_path}")
     if not os.path.exists(template_path):
@@ -55,7 +56,9 @@ def generate_card(data, template_path, image_folder, qr_folder):
     template.paste(qr, (497, 109, 658, 268))
     
     draw = ImageDraw.Draw(template)
-    font = ImageFont.truetype("arial.ttf", size=18)  # Adjust the font path as needed
+    # Adjust the font path to match your environment
+    font_path = "C:\WINDOWS\FONTS\ARIAL.TTF"
+    font = ImageFont.truetype(font_path, size=18)
     
     wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
     draw.text((311, 121), wrapped_div, font=font, fill='black')
@@ -73,7 +76,7 @@ def generate_card(data, template_path, image_folder, qr_folder):
     draw.text((621, 283), str(data['ID']), font=font, fill='black')
 
     # Adjusted for name wrapping
-    name_font = ImageFont.truetype("arial.ttf", size=18)  # Adjust the font path as needed
+    name_font = ImageFont.truetype(font_path, size=18)
     wrapped_name = center_align_text_wrapper(data['Name'], width=22)
     
     # Get the text size using ImageFont.textbbox()
@@ -85,6 +88,7 @@ def generate_card(data, template_path, image_folder, qr_folder):
     draw.text((center_x, 260), wrapped_name.title(), font=name_font, fill='black')
     
     return template
+
 
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
