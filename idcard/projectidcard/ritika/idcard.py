@@ -7,8 +7,7 @@ from fpdf import FPDF
 import fitz
 from io import BytesIO
 import base64
-from rembg import remove  # Ensure rembg is installed properly
-import numpy as np
+from rembg import remove
 
 def preprocess_image(image_path):
     input_image = Image.open(image_path)
@@ -85,6 +84,7 @@ def generate_card(data, template_path, image_folder, qr_folder):
     
     return template
 
+# Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
     words = text.split()
     lines = []
@@ -104,6 +104,7 @@ def center_align_text_wrapper(text, width=15):
 
     return centered_text
 
+# Function to get the head by division
 def get_head_by_division(division_name):
     divisions = {
         "Advanced Information Technologies Group": ["Dr. Sanjay Singh"],
@@ -125,6 +126,7 @@ def get_head_by_division(division_name):
     else:
         return "Division not found or head information not available."
 
+# Function to create a PDF from the generated ID cards
 def create_pdf(images, pdf_path):
     pdf = FPDF()
     cards_per_page = 8  # 2x4 grid
@@ -155,6 +157,7 @@ def create_pdf(images, pdf_path):
     pdf.output(pdf_path)
     return pdf_path
 
+# Function to display the PDF in Streamlit
 def display_pdf(pdf_path):
     doc = fitz.open(pdf_path)
     pdf_bytes = doc.convert_to_pdf()
@@ -172,13 +175,7 @@ def display_pdf(pdf_path):
         mime="application/pdf"
     )
 
-    # Display ID card images directly
-    for page in doc:
-        for img in page.get_images(full=True):
-            xref = img[0]
-            base_image = doc.extract_image(xref)
-            image_bytes = base64.b64encode(base_image["image"])
-            st.image(base_image["image"], caption="Generated ID Card")
+# import statements and functions above
 
 def main():
     st.title("Automatic ID Card Generation")
@@ -200,7 +197,6 @@ def main():
 
         # Display the uploaded data
         st.write("Uploaded CSV file:")
-        edited_data = st.data_editor(df)
         st.write(df)
 
         # Get student ID for individual ID card generation
@@ -212,7 +208,7 @@ def main():
                 student_data = df[df['ID'] == student_id]
                 if not student_data.empty:
                     card = generate_card(student_data.iloc[0], template_path, image_folder, qr_folder)
-                                        if card:
+                    if card:
                         pdf_path = create_pdf([card], output_pdf_path)
                         st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
                         display_pdf(pdf_path)
@@ -224,9 +220,8 @@ def main():
         # Button to generate ID cards for all students
         if st.button("Generate ID Cards for All Students"):
             images = []
-            records = edited_data.to_dict(orient='records')
-            for record in records:
-                card = generate_card(record, template_path, image_folder, qr_folder)
+            for index, row in df.iterrows():
+                card = generate_card(row, template_path, image_folder, qr_folder)
                 if card:
                     images.append(card)
 
@@ -237,4 +232,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
