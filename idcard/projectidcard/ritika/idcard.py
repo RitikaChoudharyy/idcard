@@ -67,7 +67,8 @@ def generate_card(data, template_path, image_folder, qr_folder):
         template.paste(qr, (497, 109, 658, 268))
         
         draw = ImageDraw.Draw(template)
-        font_path = "C:\WINDOWS\FONTS\ARIAL.TTF"  # Adjust the font path as needed
+        name_font = ImageFont.truetype("C:\\WINDOWS\\FONTS\\ARIAL.TTF", size=18)
+
         font_size = 18
         
         # Attempt to load Arial font, fallback to default system font if not found
