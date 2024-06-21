@@ -1,14 +1,15 @@
 import streamlit as st
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 import pandas as pd
 import os
 import textwrap
 from fpdf import FPDF
-import fitz  # PyMuPDF
+import fitz
+from io import BytesIO
 import base64
-from rembg import remove  # Assuming this library is correctly installed
+from rembg import remove  # Ensure rembg is installed properly
+import numpy as np
 
-# Function to preprocess image (remove background and convert to RGB)
 def preprocess_image(image_path):
     input_image = Image.open(image_path)
     output_image = remove(input_image)
@@ -22,11 +23,10 @@ def preprocess_image(image_path):
 
     return final_image
 
-# Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
     if not os.path.exists(template_path):
-        st.error(f"Template image not found at the specified location: {template_path}")
-        st.stop()
+        st.error("Template image not found at the specified location.")
+        return None
     
     pic_id = str(data.get('ID', ''))
     if not pic_id:
@@ -85,7 +85,6 @@ def generate_card(data, template_path, image_folder, qr_folder):
     
     return template
 
-# Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
     words = text.split()
     lines = []
@@ -105,7 +104,6 @@ def center_align_text_wrapper(text, width=15):
 
     return centered_text
 
-# Function to get the head by division
 def get_head_by_division(division_name):
     divisions = {
         "Advanced Information Technologies Group": ["Dr. Sanjay Singh"],
@@ -127,7 +125,6 @@ def get_head_by_division(division_name):
     else:
         return "Division not found or head information not available."
 
-# Function to create a PDF from the generated ID cards
 def create_pdf(images, pdf_path):
     pdf = FPDF()
     cards_per_page = 8  # 2x4 grid
@@ -158,7 +155,6 @@ def create_pdf(images, pdf_path):
     pdf.output(pdf_path)
     return pdf_path
 
-# Function to display the PDF in Streamlit
 def display_pdf(pdf_path):
     doc = fitz.open(pdf_path)
     pdf_bytes = doc.convert_to_pdf()
@@ -175,15 +171,22 @@ def display_pdf(pdf_path):
         file_name="generated_id_cards.pdf",
         mime="application/pdf"
     )
-# Main Streamlit app
+
+    # Display ID card images directly
+    for page in doc:
+        for img in page.get_images(full=True):
+            xref = img[0]
+            base_image = doc.extract_image(xref)
+            image_bytes = base64.b64encode(base_image["image"])
+            st.image(base_image["image"], caption="Generated ID Card")
+
 def main():
     st.title("Automatic ID Card Generation")
     
-    # Define paths
-    template_path = r"C:\Users\Shree\Desktop\idcard\projectidcard\ritika\ST.png"
-    image_folder = r"C:\Users\Shree\Desktop\idcard\projectidcard\ritika\downloaded_images"
-    qr_folder = r"C:\Users\Shree\Desktop\idcard\projectidcard\ritika\ST_output_qr_codes"
-    output_pdf_path = r"C:\Users\Shree\Desktop\generated_id_cards.pdf"
+    template_path = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST.png"
+    image_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\downloaded_images"
+    qr_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST_output_qr_codes"
+    output_pdf_path = "C:\\Users\\Shree\\Desktop\\generated_id_cards.pdf"
 
     # File uploader for CSV files
     uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
@@ -197,7 +200,26 @@ def main():
 
         # Display the uploaded data
         st.write("Uploaded CSV file:")
-        edited_data = st.dataframe(df)  # Use st.dataframe to display the DataFrame
+        edited_data = st.data_editor(df)
+        st.write(df)
+
+        # Get student ID for individual ID card generation
+        student_id = st.text_input("Enter Student ID for Individual ID Card Generation")
+
+        # Button to generate ID card for a specific student
+        if st.button("Generate ID Card for Individual Student"):
+            if student_id:
+                student_data = df[df['ID'] == student_id]
+                if not student_data.empty:
+                    card = generate_card(student_data.iloc[0], template_path, image_folder, qr_folder)
+                                        if card:
+                        pdf_path = create_pdf([card], output_pdf_path)
+                        st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
+                        display_pdf(pdf_path)
+                else:
+                    st.error(f"No student found with ID: {student_id}")
+            else:
+                st.error("Please enter a Student ID")
 
         # Button to generate ID cards for all students
         if st.button("Generate ID Cards for All Students"):
@@ -206,14 +228,13 @@ def main():
             for record in records:
                 card = generate_card(record, template_path, image_folder, qr_folder)
                 if card:
-                    images.append(card)  # Correct indentation here
+                    images.append(card)
 
             # Create and display the PDF
             pdf_path = create_pdf(images, output_pdf_path)
             st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
             display_pdf(pdf_path)
 
-# Run the Streamlit app
 if __name__ == "__main__":
     main()
 
