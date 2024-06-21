@@ -1,21 +1,17 @@
+import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 import pandas as pd
 import os
 import textwrap
 from fpdf import FPDF
-import fitz  # PyMuPDF
+import fitz
+from io import BytesIO
 import base64
-import streamlit as st
 
-# Function to preprocess image (example: placeholder function)
-def preprocess_image(image_path):
-    return Image.open(image_path)
-
-# Function to generate ID card
-def generate_card(data, template_path, image_folder, qr_folder, font_path):
-    # Check if the template path is correct
+# Function to generate ID card for an individual
+def generate_card(data, template_path, image_folder, qr_folder):
     if not os.path.exists(template_path):
-        st.error(f"Template image not found at the specified location: {template_path}")
+        st.error("Template image not found at the specified location.")
         return None
     
     pic_id = str(data.get('ID', ''))
@@ -33,19 +29,16 @@ def generate_card(data, template_path, image_folder, qr_folder, font_path):
         st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
         return None
 
-    # Preprocess the image (placeholder)
-    preprocessed_pic = preprocess_image(pic_path)
-    preprocessed_pic = preprocessed_pic.resize((144, 145))
-
     template = Image.open(template_path)
+    pic = Image.open(pic_path).resize((144, 145))
     qr = Image.open(qr_path).resize((161, 159))
     
-    template.paste(preprocessed_pic, (27, 113, 171, 258))
+    template.paste(pic, (27, 113, 171, 258))
     template.paste(qr, (497, 109, 658, 268))
     
     draw = ImageDraw.Draw(template)
-    font = ImageFont.truetype(font_path, size=18)  # Adjust the font path as needed
-
+    font = ImageFont.truetype("C:\\WINDOWS\\FONTS\\ARIAL.TTF", size=18)  # Adjust the font path as needed
+    
     wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
     draw.text((311, 121), wrapped_div, font=font, fill='black')
     draw.text((200, 356), data['University '], font=font, fill='black')
@@ -62,7 +55,7 @@ def generate_card(data, template_path, image_folder, qr_folder, font_path):
     draw.text((621, 283), str(data['ID']), font=font, fill='black')
 
     # Adjusted for name wrapping
-    name_font = ImageFont.truetype(font_path, size=18)  # Adjust the font path as needed
+    name_font = ImageFont.truetype("C:\\WINDOWS\\FONTS\\ARIAL.TTF", size=18)  # Adjust the font path as needed
     wrapped_name = center_align_text_wrapper(data['Name'], width=22)
     
     # Get the text size using ImageFont.textbbox()
@@ -95,7 +88,7 @@ def center_align_text_wrapper(text, width=15):
 
     return centered_text
 
-# Function to get the head by division
+# Function to get the head of the division
 def get_head_by_division(division_name):
     divisions = {
         "Advanced Information Technologies Group": ["Dr. Sanjay Singh"],
@@ -120,38 +113,29 @@ def get_head_by_division(division_name):
 # Function to create a PDF from the generated ID cards
 def create_pdf(images, pdf_path):
     pdf = FPDF()
-    cards_per_page = 8  # 2x4 grid
-    num_pages = -(-len(images) // cards_per_page)  # Ceiling division to get the number of pages needed
+    num_images = len(images)
+    rows = (num_images + 3) // 4  # Calculate number of rows needed for the grid
     
-    for page_num in range(num_pages):
+    pdf.set_auto_page_break(auto=True, margin=15)
+    for i in range(rows):
         pdf.add_page()
-        
-        for i in range(cards_per_page):
-            card_index = page_num * cards_per_page + i
-            if card_index < len(images):
-                card = images[card_index]
-                temp_image_path = f"temp_image_{card_index}.jpg"
-                # Ensure the image is in RGB mode before saving as JPEG
-                if card.mode == 'RGBA':
-                    card = card.convert('RGB')
-                card.save(temp_image_path)
-                
-                # Calculate x, y position for each card in the grid
-                col = i % 4
-                row = i // 4
-                x_offset = col * (pdf.w / 4 - 10)
-                y_offset = row * (pdf.h / 2 - 10)
-                
-                pdf.image(temp_image_path, x=5 + x_offset, y=5 + y_offset, w=pdf.w / 4 - 10)
-                os.remove(temp_image_path)
-    
+        for j in range(4):
+            index = i * 4 + j
+            if index < num_images:
+                x_offset = j * 210  # Adjust the horizontal spacing
+                y_offset = i * 297  # Adjust the vertical spacing
+                pdf.image(images[index], x=10 + x_offset, y=10 +                y_offset, w=200)
+    # Output PDF after adding all pages
     pdf.output(pdf_path)
     return pdf_path
 
 # Function to display the PDF in Streamlit
 def display_pdf(pdf_path):
-    doc = fitz.open(pdf_path)
-    pdf_bytes = doc.convert_to_pdf()
+    # Read the PDF file as bytes
+    with open(pdf_path, "rb") as file:
+        pdf_bytes = file.read()
+
+    # Encode PDF bytes to base64
     b64_pdf = base64.b64encode(pdf_bytes).decode()
 
     # Display PDF in an iframe
@@ -166,23 +150,29 @@ def display_pdf(pdf_path):
         mime="application/pdf"
     )
 
-    # Display ID card images directly
-    for page in doc:
-        for img in page.get_images(full=True):
-            xref = img[0]
-            base_image = doc.extract_image(xref)
-            image_bytes = base64.b64encode(base_image["image"])
-            st.image(base_image["image"], caption="Generated ID Card")
+    # Print button
+    print_js = f"""
+        <script>
+            function printPDF() {{
+                const linkSource = "data:application/pdf;base64,{b64_pdf}";
+                const downloadLink = document.createElement("a");
+                downloadLink.href = linkSource;
+                downloadLink.download = "generated_id_cards.pdf";
+                downloadLink.click();
+            }}
+        </script>
+        <button onclick="printPDF()">Print PDF</button>
+    """
+    st.markdown(print_js, unsafe_allow_html=True)
 
 # Main Streamlit app
 def main():
     st.title("Automatic ID Card Generation")
     
-    template_path = "path/to/your/template.png"
-    image_folder = "path/to/your/image/folder"
-    qr_folder = "path/to/your/qr/folder"
-    output_pdf_path = "path/to/output/generated_id_cards.pdf"
-    font_path = "path/to/your/font.ttf"  # Adjust the path based on your environment
+    template_path = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST.png"
+    image_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\downloaded_images"
+    qr_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST_output_qr_codes"
+    output_pdf_path = "C:\\Users\\Shree\\Desktop\\generated_id_cards.pdf"
 
     # File uploader for CSV files
     uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
@@ -196,39 +186,23 @@ def main():
 
         # Display the uploaded data
         st.write("Uploaded CSV file:")
-        st.dataframe(df)
+        edited_data = st.data_editor(df)
+        st.write(df)
 
-        # Get student ID for individual ID card generation
-        student_id = st.text_input("Enter Student ID for Individual ID Card Generation")
+        # Button to generate ID cards
+        if st.button("Generate ID Cards"):
+            images = []
+            records = edited_data.to_dict(orient='records')
+            for record in records:
+                card = generate_card(record, template_path, image_folder, qr_folder)
+                if card:
+                    images.append(card)
 
-        # Button to generate ID card for a specific student
-        if st.button("Generate ID Card for Individual Student"):
-            if student_id:
-                student_data = df[df['ID'] == student_id]
-                if not student_data.empty:
-                    card = generate_card(student_data.iloc[0], template_path, image_folder, qr_folder, font_path)
-                    if card:
-                        pdf_path = create_pdf([card], output_pdf_path)
-                        st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
-                        display_pdf(pdf_path)
-                else:
-                    st.error(f"No student found with ID: {student_id}")
-            else:
-                st.error("Please enter a Student ID")
-         # Button to generate ID cards for all students
-if st.button("Generate ID Cards for All Students"):
-    images = []
-    for _, data_row in df.iterrows():
-        card = generate_card(data_row, template_path, image_folder, qr_folder, font_path)
-        if card:
-            images.append(card)
-
-    # Create and display the PDF
-    pdf_path = create_pdf(images, output_pdf_path)
-    st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
-    display_pdf(pdf_path)
+            # Create and display the PDF
+            pdf_path = create_pdf(images, output_pdf_path)
+            st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
+            display_pdf(pdf_path)
 
 if __name__ == "__main__":
     main()
-
 
