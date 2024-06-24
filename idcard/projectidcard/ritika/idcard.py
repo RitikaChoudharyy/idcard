@@ -222,10 +222,12 @@ def main():
     st.title("Automatic ID Card Generation")
     
     # Hardcoded paths (adjust as per your actual folder structure)
-    template_path = "path_to_template_image.png
-    image_folder = "path_to_image_folder"
-    qr_folder = "path_to_qr_folder"
-    output_pdf_path = "generated_id_cards.pdf"
+    template_path = r"idcard/projectidcard/ritika/ST.png"
+    image_folder = r"idcard/projectidcard/ritika/downloaded_images"
+    qr_folder = r"idcard/projectidcard/ritika/ST_output_qr_codes"
+    output_pdf_path = r"C:\Users\Shree\Desktop\generated_id_cards.pdf"
+
+
     
     # Upload CSV file with data
     st.sidebar.header('Upload CSV')
