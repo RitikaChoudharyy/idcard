@@ -15,39 +15,31 @@ except ImportError:
     REMBG_AVAILABLE = False
     st.warning("Background removal library 'rembg' is not available. ID cards will be generated without background removal.")
 
-# Global list to store generated IDs
-generated_ids = []
-
 # Function to preprocess image (remove background and convert to RGB), handle if rembg is not available
 def preprocess_image(image_path):
     input_image = Image.open(image_path)
     
-    # If rembg library is available, remove background and convert to RGBA
     if REMBG_AVAILABLE:
         output_image = remove(input_image)
+        # Convert the background to white
         white_bg = Image.new("RGBA", output_image.size, "WHITE")
         final_image = Image.alpha_composite(white_bg, output_image)
     else:
-        # Convert the image to RGB mode and set background to white
+        # Convert the image to RGB mode without background removal
         final_image = input_image.convert("RGB")
     
     return final_image
 
 # Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
-    global generated_ids
-    pic_id = str(data.get('ID', ''))
-    
-    # Check if ID already generated to avoid duplicates
-    if pic_id in generated_ids:
-        st.warning(f"Skipping duplicate ID: {pic_id}")
-        return None
-    
-    generated_ids.append(pic_id)
-    
     if not os.path.exists(template_path):
         st.error(f"Template image not found at the specified location: {template_path}")
         st.stop()
+    
+    pic_id = str(data.get('ID', ''))
+    if not pic_id:
+        st.warning(f"Skipping record with missing ID: {data}")
+        return None
     
     pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
     if not os.path.exists(pic_path):
