@@ -33,7 +33,6 @@ def preprocess_image(image_path):
     
     return final_image
 
-
 # Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
     global generated_ids
@@ -217,68 +216,115 @@ def display_pdf(pdf_path):
             image_bytes = base64.b64encode(base_image["image"])
             st.image(base_image["image"], caption="Generated ID Card")
 
-# Main Streamlit app
 def main():
     st.title("Automatic ID Card Generation")
     
     # Hardcoded paths (adjust as per your actual folder structure)
-    template_path =  r"idcard/projectidcard/ritika/ST.png"
+    template_path = r"idcard/projectidcard/ritika/ST.png"
     image_folder = r"idcard/projectidcard/ritika/downloaded_images"
     qr_folder = r"idcard/projectidcard/ritika/ST_output_qr_codes"
     output_pdf_path = r"C:\Users\Shree\Desktop\generated_id_cards.pdf"
 
-    
     # Upload CSV file with data
     st.sidebar.header('Upload CSV')
     csv_file = st.sidebar.file_uploader("Upload your CSV file", type=['csv'])
-    
+
     if csv_file is not None:
         try:
             data = pd.read_csv(csv_file)
         except Exception as e:
             st.sidebar.error(f"Error reading CSV file: {str(e)}")
             return
-        
-        # Display the uploaded data
+
+        # Display the uploaded data on the sidebar
         st.sidebar.subheader('Uploaded Data')
         st.sidebar.write(data)
-        
+
+        # Button to browse downloaded images folder
+        st.sidebar.header('Browse Downloaded Images Folder')
+        image_folder_path = st.sidebar.text_input('Enter path to downloaded images folder')
+        if st.sidebar.button('Browse'):
+            if os.path.exists(image_folder_path):
+                image_folder = image_folder_path
+                st.sidebar.success(f"Updated image folder path: {image_folder}")
+            else:
+                st.sidebar.error("Path does not exist!")
+
         # Generate ID cards
         st.subheader('Generate ID Cards')
-        generate_button = st.button('Generate ID Cards')
+        generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
+
+        if generate_mode == 'Individual ID':
+            id_input = st.text_input('Enter ID:', value='')
+            if st.button('Generate ID Card'):
+                selected_data = data[data['ID'] == int(id_input)]
+                if len(selected_data) == 0:
+                    st.warning(f"No data found for ID: {id_input}")
+                else:
+                    generated_images = []
+                    for index, row in selected_data.iterrows():
+                        card = generate_card(row, template_path, image_folder, qr_folder)
+                        if card is not None:
+                            generated_images.append(card)
+                    if generated_images:
+                        st.success('ID card generated successfully!')
+                        for image in generated_images:
+                            st.image(image, use_column_width=True)
+                    else:
+                        st.warning('No ID card generated.')
+
+        elif generate_mode == 'Comma-separated IDs':
+            ids_input = st.text_area('Enter comma-separated IDs:', value='')
+            if st.button('Generate ID Cards'):
+                ids_list = [int(id.strip()) for id in ids_input.split(',') if id.strip().isdigit()]
+                if not ids_list:
+                    st.warning('Invalid input. Please enter valid comma-separated IDs.')
+                else:
+                    generated_images = []
+                    for id_input in ids_list:
+                        selected_data = data[data['ID'] == id_input]
+                        if len(selected_data) == 0:
+                            st.warning(f"No data found for ID: {id_input}")
+                        else:
+                            for index, row in selected_data.iterrows():
+                                card = generate_card(row, template_path, image_folder, qr_folder)
+                                if card is not None:
+                                    generated_images.append(card)
+                    if generated_images:
+                        st.success('ID cards generated successfully!')
+                        for image in generated_images:
+                            st.image(image, use_column_width=True)
+                    else:
+                        st.warning('No ID cards generated.')
+
+        elif generate_mode == 'All Students':
+            if st.button('Generate ID Cards for All Students'):
+                generated_images = []
+                for index, row in data.iterrows():
+                    card = generate_card(row, template_path, image_folder, qr_folder)
+                    if card is not None:
+                        generated_images.append(card)
+                if generated_images:
+                    st.success('ID cards generated successfully!')
+                    for image in generated_images:
+                        st.image(image, use_column_width=True)
+                else:
+                    st.warning('No ID cards generated.')
+
+        # Create PDF from generated ID cards
+        st.subheader('Download PDF')
+        pdf_download_button = st.button('Download PDF')
         
-        if generate_button:
-            st.info('Generating ID cards...')
-            generated_images = []
-            
-            for index, row in data.iterrows():
-                card = generate_card(row, template_path, image_folder, qr_folder)
-                if card is not None:
-                    generated_images.append(card)
-            
-            if generated_images:
-                st.success('ID cards generated successfully!')
-                st.subheader('Preview Generated ID Cards')
-                for image in generated_images:
-                    st.image(image, use_column_width=True)
-                
-                # Create PDF from generated ID cards
-                st.subheader('Download PDF')
-                pdf_download_button = st.button('Download PDF')
-                
-                if pdf_download_button:
-                    try:
-                        pdf_path = create_pdf(generated_images, output_pdf_path)
-                        st.success(f'PDF successfully generated: [{pdf_path}]')
-                        
-                        # Display PDF and download button
-                        display_pdf(pdf_path)
-                    
-                    except Exception as e:
-                        st.error(f'Error generating PDF: {str(e)}')
-            
-            else:
-                st.warning('No ID cards generated. Please check the input data and try again.')
+        if pdf_download_button:
+            try:
+                pdf_path = create_pdf(generated_images, output_pdf_path)
+                st.success(f'PDF successfully generated: [{pdf_path}]')
+
+                # Display PDF and download button
+                display_pdf(pdf_path)
+
+            except Exception as e:
+                st.error(f'Error generating PDF: {str(e)}')
 
 if __name__ == '__main__':
     main()
