@@ -7,18 +7,14 @@ from fpdf import FPDF
 import fitz  # PyMuPDF
 import base64
 
-# Function to preprocess image (remove background and convert to RGB), handle if rembg is not available
+# Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
     input_image = Image.open(image_path)
-    
-    # For simplicity, assuming REMBG is not available, we skip background removal here
-    # and just convert to RGB
     final_image = input_image.convert("RGB")
-    
     return final_image
 
 # Function to generate ID card
-def generate_card(data, template_path, downloaded_images, qr_folder):
+def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
         st.warning(f"Skipping record with missing ID: {data}")
@@ -58,8 +54,6 @@ def generate_card(data, template_path, downloaded_images, qr_folder):
         except IOError:
             name_font = ImageFont.load_default()  # Fallback to default font if Arial is not available
         
-        font_size = 18
-        
         wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
         draw.text((311, 121), wrapped_div, font=name_font, fill='black')
         draw.text((200, 356), data['University '], font=name_font, fill='black')
@@ -75,14 +69,11 @@ def generate_card(data, template_path, downloaded_images, qr_folder):
         draw.text((300, 312), str(data['Mobile']), font=name_font, fill='black')
         draw.text((621, 283), str(data['ID']), font=name_font, fill='black')
         
-        # Adjusted for name wrapping
         wrapped_name = center_align_text_wrapper(data['Name'], width=22)
         
-        # Get the text size using ImageFont.textbbox()
         name_bbox = name_font.getbbox(wrapped_name)
         name_width = name_bbox[2] - name_bbox[0]
         
-        # Calculate the x-coordinate to center the text name
         center_x = ((198 - name_width) / 2)
         draw.text((center_x, 260), wrapped_name, font=name_font, fill='black')
         
@@ -115,24 +106,20 @@ def center_align_text_wrapper(text, width=15):
 # Function to get the head by division
 def get_head_by_division(division_name):
     divisions = {
-        "Advanced Information Technologies Group": ["Dr. Sanjay Singh"],
-        "Societal Electronics Group": ["Dr. Udit Narayan Pal"],
-        "Industrial Automation": ["Dr.S.S.Sadistap"],
-        "Vacuum Electronic Devices Group": ["Dr. Sanjay Kr. Ghosh"],
-        "High-Frequency Devices & System Group": ["Dr. Ayan Bandhopadhyay"],
-        "Semiconductor Sensors & Microsystems Group": ["Dr. Suchandan Pal"],
-        "Semiconductor Process Technology Group": ["Dr. Kuldip Singh"],
-        "Industrial R & D": ["Mr.Ashok Chauhan"],
-        "High Power Microwave Systems Group": ["Dr. Anirban Bera"],
+        "Advanced Information Technologies Group": "Dr. Sanjay Singh",
+        "Societal Electronics Group": "Dr. Udit Narayan Pal",
+        "Industrial Automation": "Dr. S.S. Sadistap",
+        "Vacuum Electronic Devices Group": "Dr. Sanjay Kr. Ghosh",
+        "High-Frequency Devices & System Group": "Dr. Ayan Bandhopadhyay",
+        "Semiconductor Sensors & Microsystems Group": "Dr. Suchandan Pal",
+        "Semiconductor Process Technology Group": "Dr. Kuldip Singh",
+        "Industrial R & D": "Mr. Ashok Chauhan",
+        "High Power Microwave Systems Group": "Dr. Anirban Bera",
     }
 
     division_name = division_name.strip().title()
 
-    if division_name in divisions:
-        head_names = divisions[division_name]
-        return head_names[0]  # Assuming only one head for each division
-    else:
-        return "Division not found or head information not available."
+    return divisions.get(division_name, "Division not found or head information not available.")
 
 # Function to create a PDF from the generated ID cards
 def create_pdf(images, pdf_path):
@@ -148,12 +135,10 @@ def create_pdf(images, pdf_path):
             if card_index < len(images):
                 card = images[card_index]
                 temp_image_path = f"temp_image_{card_index}.jpg"
-                # Ensure the image is in RGB mode before saving as JPEG
                 if card.mode == 'RGBA':
                     card = card.convert('RGB')
                 card.save(temp_image_path)
                 
-                # Calculate x, y position for each card in the grid
                 col = i % 4
                 row = i // 4
                 x_offset = col * (pdf.w / 4 - 10)
@@ -171,11 +156,9 @@ def display_pdf(pdf_path):
     pdf_bytes = doc.convert_to_pdf()
     b64_pdf = base64.b64encode(pdf_bytes).decode()
 
-    # Display PDF in an iframe
     pdf_display = f'<iframe src="data:application/pdf;base64,{b64_pdf}" width="700" height="1000" type="application/pdf"></iframe>'
     st.markdown(pdf_display, unsafe_allow_html=True)
 
-    # Download button
     st.download_button(
         label="Download PDF",
         data=pdf_bytes,
@@ -183,12 +166,10 @@ def display_pdf(pdf_path):
         mime="application/pdf"
     )
 
-    # Display ID card images directly
     for page in doc:
         for img in page.get_images(full=True):
             xref = img[0]
             base_image = doc.extract_image(xref)
-            image_bytes = base64.b64encode(base_image["image"])
             st.image(base_image["image"], caption="Generated ID Card")
 
 def main():
@@ -199,7 +180,6 @@ def main():
     qr_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST_output_qr_codes"
     output_pdf_path = "C:\\Users\\Shree\\Desktop\\generated_id_cards.pdf"
 
-    # Upload CSV file with data
     st.sidebar.header('Upload CSV')
     csv_file = st.sidebar.file_uploader("Upload your CSV file", type=['csv'])
 
@@ -210,11 +190,9 @@ def main():
             st.sidebar.error(f"Error reading CSV file: {str(e)}")
             return
 
-        # Display the uploaded data on the sidebar
         st.sidebar.subheader('Uploaded Data')
         st.sidebar.write(data)
 
-        # Button to browse downloaded images folder
         st.sidebar.header('Browse Downloaded Images Folder')
         image_folder_path = st.sidebar.text_input('Enter path to downloaded images folder')
         if st.sidebar.button('Browse'):
@@ -224,7 +202,6 @@ def main():
             else:
                 st.sidebar.error("Path does not exist!")
 
-        # Generate ID cards
         st.subheader('Generate ID Cards')
         generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
 
@@ -232,12 +209,12 @@ def main():
             id_input = st.text_input('Enter ID:', value='')
             if st.button('Generate ID Card'):
                 selected_data = data[data['ID'] == int(id_input)]
-                if len(selected_data) == 0:
+                if selected_data.empty:
                     st.warning(f"No data found for ID: {id_input}")
                 else:
                     generated_images = []
                     for index, row in selected_data.iterrows():
-                        card = generate_card(row, image_folder , qr_folder)
+                        card = generate_card(row, template_path, image_folder, qr_folder)
                         if card is not None:
                             generated_images.append(card)
                     if generated_images:
@@ -257,7 +234,7 @@ def main():
                     generated_images = []
                     for id_input in ids_list:
                         selected_data = data[data['ID'] == id_input]
-                        if len(selected_data) == 0:
+                        if selected_data.empty:
                             st.warning(f"No data found for ID: {id_input}")
                         else:
                             for index, row in selected_data.iterrows():
@@ -285,7 +262,6 @@ def main():
                 else:
                     st.warning('No ID cards generated.')
 
-        # Create PDF from generated ID cards
         st.subheader('Download PDF')
         pdf_download_button = st.button('Download PDF')
         
@@ -293,10 +269,7 @@ def main():
             try:
                 pdf_path = create_pdf(generated_images, output_pdf_path)
                 st.success(f'PDF successfully generated: [{pdf_path}]')
-
-                # Display PDF and download button
                 display_pdf(pdf_path)
-
             except Exception as e:
                 st.error(f'Error generating PDF: {str(e)}')
 
