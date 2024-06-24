@@ -18,7 +18,7 @@ def preprocess_image(image_path):
     return final_image
 
 # Function to generate ID card
-def generate_card(data, template_path, image_folder, qr_folder, generated_ids):
+def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
         st.warning(f"Skipping record with missing ID: {data}")
@@ -190,6 +190,7 @@ def display_pdf(pdf_path):
             base_image = doc.extract_image(xref)
             image_bytes = base64.b64encode(base_image["image"])
             st.image(base_image["image"], caption="Generated ID Card")
+
 def main():
     st.title("Automatic ID Card Generation")
     
@@ -302,4 +303,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
