@@ -6,32 +6,61 @@ import textwrap
 from fpdf import FPDF
 import fitz  # PyMuPDF
 import base64
+import os
+import io
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseDownload
+import gspread
 
-# Import rembg for background removal if available
-try:
-    from rembg import remove  # Assuming this library is correctly installed
-    REMBG_AVAILABLE = True
-except ImportError:
-    REMBG_AVAILABLE = False
-    st.warning("Background removal library 'rembg' is not available. ID cards will be generated without background removal.")
+# Load credentials from the service account JSON file
+credentials = service_account.Credentials.from_service_account_file('ceeriintern-440751c7bf05.json', scopes=['https://www.googleapis.com/auth/drive'])
+gc = gspread.authorize(credentials)
 
-# Global list to store generated IDs
-generated_ids = []
+# Create a Google Drive service
+drive_service = build('drive', 'v3', credentials=credentials)
 
-# Function to preprocess image (remove background and convert to RGB), handle if rembg is not available
-def preprocess_image(image_path):
-    input_image = Image.open(image_path)
-    
-    # If rembg library is available, remove background and convert to RGBA
-    if REMBG_AVAILABLE:
-        output_image = remove(input_image)
-        white_bg = Image.new("RGBA", output_image.size, "WHITE")
-        final_image = Image.alpha_composite(white_bg, output_image)
-    else:
-        # Convert the image to RGB mode and set background to white
-        final_image = input_image.convert("RGB")
-    
-    return final_image
+# Open the Google Sheet - replace with your actual spreadsheet ID and sheet name
+spreadsheet_id = '1oJ40rKq4jDSMsvmtCvlja2FnXRCV8aAfAXWsyWhM_Ds'
+worksheet = gc.open_by_key(spreadsheet_id).sheet1  # Replace with the actual worksheet
+
+def download_images_from_sheet(worksheet):
+    try:
+        # Get image URLs from column B (2nd column) starting from the 2nd row
+        image_urls = worksheet.col_values(2)[1:]
+
+        # Create a folder to store downloaded images if it doesn't exist
+        save_as_path = 'downloaded_images'
+        if not os.path.exists(save_as_path):
+            os.makedirs(save_as_path)
+
+        # Download and save images
+        for i, image_url in enumerate(image_urls, start=2):
+            try:
+                # Extract file ID from the URL
+                file_id = image_url.split('id=')[1]
+
+                # Download the file content
+                request = drive_service.files().get_media(fileId=file_id)
+                fh = io.BytesIO()
+                downloader = MediaIoBaseDownload(fh, request)
+                done = False
+                while done is False:
+                    status, done = downloader.next_chunk()
+
+                # Save the downloaded content to a file
+                save_as_filename = os.path.join(save_as_path, f'{worksheet.cell(i, 1).value}.jpg')
+                with open(save_as_filename, 'wb') as f:
+                    fh.seek(0)
+                    f.write(fh.read())
+
+                print(f'Downloaded: {save_as_filename}')
+
+            except Exception as e:
+                print(f'Error downloading image from {image_url}: {e}')
+
+    except Exception as e:
+        print(f'Error processing worksheet: {e}')
 
 # Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
@@ -306,7 +335,6 @@ def main():
                         st.image(image, use_column_width=True)
                 else:
                     st.warning('No ID cards generated.')
-
         # Create PDF from generated ID cards
         st.subheader('Download PDF')
         pdf_download_button = st.button('Download PDF')
@@ -321,6 +349,5 @@ def main():
 
             except Exception as e:
                 st.error(f'Error generating PDF: {str(e)}')
-
 if __name__ == "__main__":
     main()
