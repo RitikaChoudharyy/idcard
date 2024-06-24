@@ -215,19 +215,16 @@ def display_pdf(pdf_path):
             base_image = doc.extract_image(xref)
             image_bytes = base64.b64encode(base_image["image"])
             st.image(base_image["image"], caption="Generated ID Card")
-
 # Main Streamlit app
 def main():
     st.title("Automatic ID Card Generation")
     
     # Hardcoded paths (adjust as per your actual folder structure)
     template_path = r"idcard/projectidcard/ritika/ST.png"
-    image_folder = r"idcard/projectidcard/ritika/download
+    image_folder = r"idcard/projectidcard/ritika/downloaded_images"
     qr_folder = r"idcard/projectidcard/ritika/ST_output_qr_codes"
     output_pdf_path = r"C:\Users\Shree\Desktop\generated_id_cards.pdf"
 
-
-    
     # Upload CSV file with data
     st.sidebar.header('Upload CSV')
     csv_file = st.sidebar.file_uploader("Upload your CSV file", type=['csv'])
@@ -280,5 +277,5 @@ def main():
             else:
                 st.warning('No ID cards generated. Please check the input data and try again.')
 
-if _name_ == '_main_':
-    main()
+if __name__ == '__main__':
+    main()
