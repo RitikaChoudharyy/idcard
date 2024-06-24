@@ -6,21 +6,23 @@ import textwrap
 from fpdf import FPDF
 import fitz  # PyMuPDF
 import base64
+
+# Function to preprocess image (remove background and convert to RGB), handle if rembg is not available
+def preprocess_image(image_path):
+    input_image = Image.open(image_path)
+    
+    # For simplicity, assuming REMBG is not available, we skip background removal here
+    # and just convert to RGB
+    final_image = input_image.convert("RGB")
+    
+    return final_image
+
 # Function to generate ID card
-def generate_card(data, template_path, image_folder, qr_folder):
-    global generated_ids
+def generate_card(data, template_path, image_folder, qr_folder, generated_ids):
     pic_id = str(data.get('ID', ''))
-    
-    # Check if ID already generated to avoid duplicates
-    if pic_id in generated_ids:
-        st.warning(f"Skipping duplicate ID: {pic_id}")
+    if not pic_id:
+        st.warning(f"Skipping record with missing ID: {data}")
         return None
-    
-    generated_ids.append(pic_id)
-    
-    if not os.path.exists(template_path):
-        st.error(f"Template image not found at the specified location: {template_path}")
-        st.stop()
     
     pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
     if not os.path.exists(pic_path):
@@ -188,7 +190,6 @@ def display_pdf(pdf_path):
             base_image = doc.extract_image(xref)
             image_bytes = base64.b64encode(base_image["image"])
             st.image(base_image["image"], caption="Generated ID Card")
-
 def main():
     st.title("Automatic ID Card Generation")
     
