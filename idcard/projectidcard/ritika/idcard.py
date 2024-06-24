@@ -221,7 +221,12 @@ def main():
         if generate_mode == 'Individual ID':
             id_input = st.text_input('Enter ID:', value='')
             if st.button('Generate ID Card'):
-                selected_data = data[data['ID'] == int(id_input)]
+                try:
+                    selected_data = data[data['ID'] == int(id_input)]
+                except ValueError:
+                    st.error(f"Invalid input for ID: {id_input}. Please enter a valid integer ID.")
+                    return
+                
                 if selected_data.empty:
                     st.warning(f"No data found for ID: {id_input}")
                 else:
@@ -251,13 +256,18 @@ def main():
         elif generate_mode == 'Comma-separated IDs':
             ids_input = st.text_area('Enter comma-separated IDs:', value='')
             if st.button('Generate ID Cards'):
-                ids_list = [int(id.strip()) for id in ids_input.split(',') if id.strip().isdigit()]
+                ids_list = [id.strip() for id in ids_input.split(',') if id.strip().isdigit()]
                 if not ids_list:
                     st.warning('Invalid input. Please enter valid comma-separated IDs.')
                 else:
                     generated_images = []
                     for id_input in ids_list:
-                        selected_data = data[data['ID'] == id_input]
+                        try:
+                            selected_data = data[data['ID'] == int(id_input)]
+                        except ValueError:
+                            st.warning(f"Skipping invalid ID: {id_input}. Please enter valid integer IDs.")
+                            continue
+                        
                         if selected_data.empty:
                             st.warning(f"No data found for ID: {id_input}")
                         else:
