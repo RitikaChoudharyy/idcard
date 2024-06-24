@@ -215,15 +215,6 @@ def main():
         st.sidebar.subheader('Uploaded Data')
         st.sidebar.write(data)
 
-        st.sidebar.header('Browse Downloaded Images Folder')
-        image_folder_path = st.sidebar.text_input('Enter path to downloaded images folder')
-        if st.sidebar.button('Browse'):
-            if os.path.exists(image_folder_path):
-                image_folder = image_folder_path
-                st.sidebar.success(f"Updated image folder path: {image_folder}")
-            else:
-                st.sidebar.error("Path does not exist!")
-
         st.subheader('Generate ID Cards')
         generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
 
