@@ -216,7 +216,7 @@ def main():
     template_path = r"idcard/projectidcard/ritika/ST.png"
     image_folder = r"idcard/projectidcard/ritika/downloaded_images"
     qr_folder = r"idcard/projectidcard/ritika/ST_output_qr_codes"
-    output_pdf_path = r"C:\Users\Shree\Desktop\generated_id_cards.pdf"
+    output_pdf_path = r"C:\\Users\\Shree\\Desktop\\generated_id_cards.pdf"
 
     # Divide the layout into two columns
     col1, col2 = st.columns([1, 3])
@@ -311,3 +311,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
