@@ -18,7 +18,7 @@ def preprocess_image(image_path):
     return final_image
 
 # Function to generate ID card
-def generate_card(data, template_path, image_folder, qr_folder):
+def generate_card(data, template_path, downloaded_images, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
         st.warning(f"Skipping record with missing ID: {data}")
@@ -221,7 +221,7 @@ def main():
         if st.sidebar.button('Browse'):
             if os.path.exists(image_folder_path):
                 image_folder = image_folder_path
-                st.sidebar.success(f"Updated image folder path: {image_folder}")
+                st.sidebar.success(f"Updated image folder path: {downloaded_images}")
             else:
                 st.sidebar.error("Path does not exist!")
 
@@ -238,7 +238,7 @@ def main():
                 else:
                     generated_images = []
                     for index, row in selected_data.iterrows():
-                        card = generate_card(row, template_path, image_folder, qr_folder)
+                        card = generate_card(row, template_path, downloaded_images, qr_folder)
                         if card is not None:
                             generated_images.append(card)
                     if generated_images:
