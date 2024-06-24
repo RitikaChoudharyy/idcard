@@ -317,5 +317,5 @@ def main():
             # Display the uploaded data
             st.write("Uploaded CSV file:")
             edited_data = st.data_editor(df)
-    if __name__ == "__main__":
+if __name__ == "__main__":
     main()
