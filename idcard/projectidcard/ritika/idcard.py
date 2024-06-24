@@ -24,7 +24,7 @@ def generate_card(data, template_path, downloaded_images, qr_folder):
         st.warning(f"Skipping record with missing ID: {data}")
         return None
     
-    pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
+    pic_path = os.path.join(downloaded_images, f"{pic_id}.jpg")
     if not os.path.exists(pic_path):
         st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
         return None
