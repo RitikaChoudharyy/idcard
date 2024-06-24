@@ -9,9 +9,13 @@ import base64
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
-    input_image = Image.open(image_path)
-    final_image = input_image.convert("RGB")
-    return final_image
+    try:
+        input_image = Image.open(image_path)
+        final_image = input_image.convert("RGB")
+        return final_image
+    except Exception as e:
+        st.error(f"Error opening image at {image_path}: {str(e)}")
+        return None
 
 # Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
@@ -31,11 +35,14 @@ def generate_card(data, template_path, image_folder, qr_folder):
         return None
 
     # Preprocess the image
+    preprocessed_pic = preprocess_image(pic_path)
+    if preprocessed_pic is None:
+        return None
+    
     try:
-        preprocessed_pic = preprocess_image(pic_path)
         preprocessed_pic = preprocessed_pic.resize((144, 145))
     except Exception as e:
-        st.error(f"Error preprocessing image for ID: {pic_id}. Error: {str(e)}")
+        st.error(f"Error resizing image for ID: {pic_id}. Error: {str(e)}")
         return None
 
     try:
@@ -47,12 +54,11 @@ def generate_card(data, template_path, image_folder, qr_folder):
         
         draw = ImageDraw.Draw(template)
         
-        # Load Arial font with fallback to default system font
         try:
             font_path = "C:\\WINDOWS\\FONTS\\ARIAL.TTF"
             name_font = ImageFont.truetype(font_path, size=18)
         except IOError:
-            name_font = ImageFont.load_default()  # Fallback to default font if Arial is not available
+            name_font = ImageFont.load_default()
         
         wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
         draw.text((311, 121), wrapped_div, font=name_font, fill='black')
@@ -93,11 +99,10 @@ def center_align_text_wrapper(text, width=15):
         if len(current_line) + len(word) + 1 <= width:
             current_line += word + " "
         else:
-            lines.append(current_line[:-1])  # Exclude the trailing space
+            lines.append(current_line[:-1])
             current_line = word + " "
 
-    lines.append(current_line[:-1])  # Include the last line
-
+    lines.append(current_line[:-1])
     centered_lines = [line.center(width) for line in lines]
     centered_text = "\n".join(centered_lines)
 
@@ -118,14 +123,13 @@ def get_head_by_division(division_name):
     }
 
     division_name = division_name.strip().title()
-
     return divisions.get(division_name, "Division not found or head information not available.")
 
 # Function to create a PDF from the generated ID cards
 def create_pdf(images, pdf_path):
     pdf = FPDF()
-    cards_per_page = 8  # 2x4 grid
-    num_pages = -(-len(images) // cards_per_page)  # Ceiling division to get the number of pages needed
+    cards_per_page = 8
+    num_pages = -(-len(images) // cards_per_page)
     
     for page_num in range(num_pages):
         pdf.add_page()
