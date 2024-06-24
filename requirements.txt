@@ -1,13 +1,14 @@
 streamlit
 Pillow
 pandas
-fpdf2
-PyMuPDF
+fpdf
 opencv-python
 numpy
-rembg
 textwrap3
 plotly
 yfinance
 pandas-datareader
 prophet
+pymupdf
+rembg
+onnxruntime
