@@ -215,7 +215,6 @@ def display_pdf(pdf_path):
             base_image = doc.extract_image(xref)
             image_bytes = base64.b64encode(base_image["image"])
             st.image(base_image["image"], caption="Generated ID Card")
-
 def main():
     st.title("Automatic ID Card Generation")
     
