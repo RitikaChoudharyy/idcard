@@ -217,7 +217,7 @@ def main():
 
             if images_folder and qr_folder:
                 images_paths = {image.name: image for image in images_folder}
-                                qr_paths = {qr.name: qr for qr in qr_folder}
+                qr_paths = {qr.name: qr for qr in qr_folder}
 
                 # Sidebar selection for ID cards generation
                 st.sidebar.title("Select Student IDs for ID Cards")
