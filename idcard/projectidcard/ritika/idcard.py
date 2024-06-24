@@ -12,8 +12,11 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 import gspread
 
+# Get the absolute path to the JSON file
+json_file_path = os.path.abspath('/path/to/ceeriintern-440751c7bf05.json')
+
 # Load credentials from the service account JSON file
-credentials = service_account.Credentials.from_service_account_file('ceeriintern-440751c7bf05.json', scopes=['https://www.googleapis.com/auth/drive'])
+credentials = service_account.Credentials.from_service_account_file(json_file_path, scopes=['https://www.googleapis.com/auth/drive'])
 gc = gspread.authorize(credentials)
 
 # Create a Google Drive service
