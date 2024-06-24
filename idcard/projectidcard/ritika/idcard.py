@@ -15,40 +15,31 @@ except ImportError:
     REMBG_AVAILABLE = False
     st.warning("Background removal library 'rembg' is not available. ID cards will be generated without background removal.")
 
-# Global list to store generated IDs
-generated_ids = []
-
 # Function to preprocess image (remove background and convert to RGB), handle if rembg is not available
 def preprocess_image(image_path):
     input_image = Image.open(image_path)
     
-    # If rembg library is available, remove background and convert to RGBA
     if REMBG_AVAILABLE:
         output_image = remove(input_image)
+        # Convert the background to white
         white_bg = Image.new("RGBA", output_image.size, "WHITE")
         final_image = Image.alpha_composite(white_bg, output_image)
     else:
-        # Convert the image to RGB mode and set background to white
+        # Convert the image to RGB mode without background removal
         final_image = input_image.convert("RGB")
     
     return final_image
 
-
 # Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
-    global generated_ids
-    pic_id = str(data.get('ID', ''))
-    
-    # Check if ID already generated to avoid duplicates
-    if pic_id in generated_ids:
-        st.warning(f"Skipping duplicate ID: {pic_id}")
-        return None
-    
-    generated_ids.append(pic_id)
-    
     if not os.path.exists(template_path):
         st.error(f"Template image not found at the specified location: {template_path}")
         st.stop()
+    
+    pic_id = str(data.get('ID', ''))
+    if not pic_id:
+        st.warning(f"Skipping record with missing ID: {data}")
+        return None
     
     pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
     if not os.path.exists(pic_path):
@@ -227,59 +218,102 @@ def main():
     qr_folder = r"idcard/projectidcard/ritika/ST_output_qr_codes"
     output_pdf_path = r"C:\Users\Shree\Desktop\generated_id_cards.pdf"
 
+    # Divide the layout into two columns
+    col1, col2 = st.columns([1, 3])
 
-    
-    # Upload CSV file with data
-    st.sidebar.header('Upload CSV')
-    csv_file = st.sidebar.file_uploader("Upload your CSV file", type=['csv'])
-    
-    if csv_file is not None:
-        try:
-            data = pd.read_csv(csv_file)
-        except Exception as e:
-            st.sidebar.error(f"Error reading CSV file: {str(e)}")
-            return
+    # Left column
+    with col1:
+        st.header("Controls")
         
-        # Display the uploaded data
-        st.sidebar.subheader('Uploaded Data')
-        st.sidebar.write(data)
+        # Browse for images folder
+        st.subheader("Browse Images Folder")
+        image_folder = st.text_input("Images Folder Path", image_folder)
         
-        # Generate ID cards
-        st.subheader('Generate ID Cards')
-        generate_button = st.button('Generate ID Cards')
+        # Browse for QR codes folder
+        st.subheader("Browse QR Codes Folder")
+        qr_folder = st.text_input("QR Codes Folder Path", qr_folder)
         
-        if generate_button:
-            st.info('Generating ID cards...')
-            generated_images = []
-            
-            for index, row in data.iterrows():
-                card = generate_card(row, template_path, image_folder, qr_folder)
-                if card is not None:
-                    generated_images.append(card)
-            
-            if generated_images:
-                st.success('ID cards generated successfully!')
-                st.subheader('Preview Generated ID Cards')
-                for image in generated_images:
-                    st.image(image, use_column_width=True)
-                
-                # Create PDF from generated ID cards
-                st.subheader('Download PDF')
-                pdf_download_button = st.button('Download PDF')
-                
-                if pdf_download_button:
-                    try:
-                        pdf_path = create_pdf(generated_images, output_pdf_path)
-                        st.success(f'PDF successfully generated: [{pdf_path}]')
-                        
-                        # Display PDF and download button
-                        display_pdf(pdf_path)
-                    
-                    except Exception as e:
-                        st.error(f'Error generating PDF: {str(e)}')
-            
-            else:
-                st.warning('No ID cards generated. Please check the input data and try again.')
+        # Browse for CSV file
+        uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
+        
+        # Dropdown menu for generating ID cards
+        generate_option = st.selectbox("Choose an option to generate ID cards:", ["", "Generate Individual ID Card", "Generate Comma-separated ID Cards", "Generate All ID Cards"])
 
-if _name_ == '_main_':
+        # Text input for individual student ID card generation
+        if generate_option == "Generate Individual ID Card":
+            student_id = st.text_input("Enter Student ID for Individual ID Card Generation")
+            if st.button("Generate ID Card"):
+                if uploaded_file is not None:
+                    df = pd.read_csv(uploaded_file, converters={'ID': str})
+                    student_data = df[df['ID'] == student_id]
+                    if not student_data.empty:
+                        card = generate_card(student_data.iloc[0], template_path, image_folder, qr_folder)
+                        if card:
+                            pdf_path = create_pdf([card], output_pdf_path)
+                            st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
+                            display_pdf(pdf_path)
+                    else:
+                        st.error(f"No student found with ID: {student_id}")
+                else:
+                    st.error("Please upload a CSV file first.")
+        
+        # Text area for comma-separated student IDs for batch generation
+        if generate_option == "Generate Comma-separated ID Cards":
+            ids_input = st.text_area("Enter comma-separated Student IDs for Batch Generation")
+            if st.button("Generate ID Cards"):
+                if uploaded_file is not None:
+                    df = pd.read_csv(uploaded_file, converters={'ID': str})
+                    if ids_input:
+                        ids = [id.strip() for id in ids_input.split(",")]
+                        specified_data = df[df['ID'].isin(ids)]
+                        if not specified_data.empty:
+                            images = []
+                            records = specified_data.to_dict(orient='records')
+                            for record in records:
+                                card = generate_card(record, template_path, image_folder, qr_folder)
+                                if card:
+                                    images.append(card)
+                            pdf_path = create_pdf(images, output_pdf_path)
+                            st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
+                            display_pdf(pdf_path)
+                        else:
+                            st.error("No students found with the specified IDs")
+                    else:
+                        st.error("Please enter at least one Student ID")
+                else:
+                    st.error("Please upload a CSV file first.")
+        
+        # Button to generate ID cards for all students
+        if generate_option == "Generate All ID Cards":
+            if st.button("Generate ID Cards for All Students"):
+                if uploaded_file is not None:
+                    df = pd.read_csv(uploaded_file, converters={'ID': str})
+                    images = []
+                    records = df.to_dict(orient='records')
+                    for record in records:
+                        card = generate_card(record, template_path, image_folder, qr_folder)
+                        if card:
+                            images.append(card)
+                    pdf_path = create_pdf(images, output_pdf_path)
+                    st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
+                    display_pdf(pdf_path)
+                else:
+                    st.error("Please upload a CSV file first.")
+    
+    # Right column
+    with col2:
+        st.header("Uploaded Data and Generated PDF")
+        
+        if uploaded_file is not None:
+            # Read the uploaded CSV file into a DataFrame
+            df = pd.read_csv(uploaded_file, converters={'ID': str})
+            
+            # Check for duplicates and remove them
+            df = df.drop_duplicates()
+            
+            # Display the uploaded data
+            st.write("Uploaded CSV file:")
+            edited_data = st.data_editor(df)
+
+if __name__ == "__main__":
     main()
