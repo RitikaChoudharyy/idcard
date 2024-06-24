@@ -6,7 +6,6 @@ import textwrap
 from fpdf import FPDF
 import fitz  # PyMuPDF
 import base64
-import os
 import io
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -20,10 +19,7 @@ gc = gspread.authorize(credentials)
 # Create a Google Drive service
 drive_service = build('drive', 'v3', credentials=credentials)
 
-# Open the Google Sheet - replace with your actual spreadsheet ID and sheet name
-spreadsheet_id = '1oJ40rKq4jDSMsvmtCvlja2FnXRCV8aAfAXWsyWhM_Ds'
-worksheet = gc.open_by_key(spreadsheet_id).sheet1  # Replace with the actual worksheet
-
+# Function to download images from Google Drive based on URLs in a Google Sheet
 def download_images_from_sheet(worksheet):
     try:
         # Get image URLs from column B (2nd column) starting from the 2nd row
@@ -66,23 +62,23 @@ def download_images_from_sheet(worksheet):
 def generate_card(data, template_path, image_folder, qr_folder):
     global generated_ids
     pic_id = str(data.get('ID', ''))
-    
+
     # Check if ID already generated to avoid duplicates
     if pic_id in generated_ids:
         st.warning(f"Skipping duplicate ID: {pic_id}")
         return None
-    
+
     generated_ids.append(pic_id)
-    
+
     if not os.path.exists(template_path):
         st.error(f"Template image not found at the specified location: {template_path}")
         st.stop()
-    
+
     pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
     if not os.path.exists(pic_path):
         st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
         return None
-    
+
     qr_path = os.path.join(qr_folder, f"{pic_id}.png")
     if not os.path.exists(qr_path):
         st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
@@ -99,49 +95,49 @@ def generate_card(data, template_path, image_folder, qr_folder):
     try:
         template = Image.open(template_path)
         qr = Image.open(qr_path).resize((161, 159))
-        
+
         template.paste(preprocessed_pic, (27, 113, 171, 258))
         template.paste(qr, (497, 109, 658, 268))
-        
+
         draw = ImageDraw.Draw(template)
-        
+
         # Load Arial font with fallback to default system font
         try:
             font_path = "C:\\WINDOWS\\FONTS\\ARIAL.TTF"
             name_font = ImageFont.truetype(font_path, size=18)
         except IOError:
             name_font = ImageFont.load_default()  # Fallback to default font if Arial is not available
-        
+
         font_size = 18
-        
+
         wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
         draw.text((311, 121), wrapped_div, font=name_font, fill='black')
         draw.text((200, 356), data['University '], font=name_font, fill='black')
-        
+
         division_input = data['Division/Section']
         head_name = get_head_by_division(division_input)
-        
+
         wrapped_supri = textwrap.fill(str(head_name), width=20).title()
         draw.text((311, 170), wrapped_supri, font=name_font, fill='black')
-        
+
         draw.text((305, 219), data['Internship Start Date'], font=name_font, fill='black')
         draw.text((303, 266), data['Internship End Date'], font=name_font, fill='black')
         draw.text((300, 312), str(data['Mobile']), font=name_font, fill='black')
         draw.text((621, 283), str(data['ID']), font=name_font, fill='black')
-        
+
         # Adjusted for name wrapping
         wrapped_name = center_align_text_wrapper(data['Name'], width=22)
-        
+
         # Get the text size using ImageFont.textbbox()
         name_bbox = name_font.getbbox(wrapped_name)
         name_width = name_bbox[2] - name_bbox[0]
-        
+
         # Calculate the x-coordinate to center the text name
         center_x = ((198 - name_width) / 2)
         draw.text((center_x, 260), wrapped_name, font=name_font, fill='black')
-        
+
         return template
-    
+
     except Exception as e:
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
@@ -193,10 +189,10 @@ def create_pdf(images, pdf_path):
     pdf = FPDF()
     cards_per_page = 8  # 2x4 grid
     num_pages = -(-len(images) // cards_per_page)  # Ceiling division to get the number of pages needed
-    
+
     for page_num in range(num_pages):
         pdf.add_page()
-        
+
         for i in range(cards_per_page):
             card_index = page_num * cards_per_page + i
             if card_index < len(images):
@@ -206,20 +202,19 @@ def create_pdf(images, pdf_path):
                 if card.mode == 'RGBA':
                     card = card.convert('RGB')
                 card.save(temp_image_path)
-                
+
                 # Calculate x, y position for each card in the grid
                 col = i % 4
                 row = i // 4
                 x_offset = col * (pdf.w / 4 - 10)
                 y_offset = row * (pdf.h / 2 - 10)
-                
+
                 pdf.image(temp_image_path, x=5 + x_offset, y=5 + y_offset, w=pdf.w / 4 - 10)
                 os.remove(temp_image_path)
-    
+
     pdf.output(pdf_path)
     return pdf_path
 
-# Function to display the PDF in Streamlit
 def display_pdf(pdf_path):
     doc = fitz.open(pdf_path)
     pdf_bytes = doc.convert_to_pdf()
@@ -237,13 +232,8 @@ def display_pdf(pdf_path):
         mime="application/pdf"
     )
 
-    # Display ID card images directly
-    for page in doc:
-        for img in page.get_images(full=True):
-            xref = img[0]
-            base_image = doc.extract_image(xref)
-            image_bytes = base64.b64encode(base_image["image"])
-            st.image(base_image["image"], caption="Generated ID Card")
+    # Close the PDF document
+    doc.close()
 def main():
     st.title("Automatic ID Card Generation")
     template_path = r"idcard/projectidcard/ritika/ST.png"
