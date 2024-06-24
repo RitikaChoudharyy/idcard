@@ -4,10 +4,8 @@ import pandas as pd
 import os
 import textwrap
 from fpdf import FPDF
-import fitz
+import fitz  # PyMuPDF
 import base64
-import rembg
-
 
 # Import rembg for background removal if available
 try:
@@ -31,6 +29,9 @@ def preprocess_image(image_path):
         final_image = input_image.convert("RGB")
     
     return final_image
+
+# (Rest of the code remains the same)
+
 
 # Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
@@ -238,63 +239,69 @@ def main():
         # Browse for CSV file
         uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
         
+        # Dropdown menu for generating ID cards
+        generate_option = st.selectbox("Choose an option to generate ID cards:", ["", "Generate Individual ID Card", "Generate Comma-separated ID Cards", "Generate All ID Cards"])
+
         # Text input for individual student ID card generation
-        student_id = st.text_input("Enter Student ID for Individual ID Card Generation")
-        if st.button("Generate ID Card for Individual Student"):
-            if uploaded_file is not None:
-                df = pd.read_csv(uploaded_file, converters={'ID': str})
-                student_data = df[df['ID'] == student_id]
-                if not student_data.empty:
-                    card = generate_card(student_data.iloc[0], template_path, image_folder, qr_folder)
-                    if card:
-                        pdf_path = create_pdf([card], output_pdf_path)
-                        st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
-                        display_pdf(pdf_path)
+        if generate_option == "Generate Individual ID Card":
+            student_id = st.text_input("Enter Student ID for Individual ID Card Generation")
+            if st.button("Generate ID Card"):
+                if uploaded_file is not None:
+                    df = pd.read_csv(uploaded_file, converters={'ID': str})
+                    student_data = df[df['ID'] == student_id]
+                    if not student_data.empty:
+                        card = generate_card(student_data.iloc[0], template_path, image_folder, qr_folder)
+                        if card:
+                            pdf_path = create_pdf([card], output_pdf_path)
+                            st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
+                            display_pdf(pdf_path)
+                    else:
+                        st.error(f"No student found with ID: {student_id}")
                 else:
-                    st.error(f"No student found with ID: {student_id}")
-            else:
-                st.error("Please upload a CSV file first.")
+                    st.error("Please upload a CSV file first.")
         
         # Text area for comma-separated student IDs for batch generation
-        ids_input = st.text_area("Enter comma-separated Student IDs for Batch Generation")
-        if st.button("Generate ID Cards for Specified IDs"):
-            if uploaded_file is not None:
-                df = pd.read_csv(uploaded_file, converters={'ID': str})
-                if ids_input:
-                    ids = [id.strip() for id in ids_input.split(",")]
-                    specified_data = df[df['ID'].isin(ids)]
-                    if not specified_data.empty:
-                        images = []
-                        records = specified_data.to_dict(orient='records')
-                        for record in records:
-                            card = generate_card(record, template_path, image_folder, qr_folder)
-                            if card:
-                                images.append(card)
-                        pdf_path = create_pdf(images, output_pdf_path)
-                        st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
-                        display_pdf(pdf_path)
+        if generate_option == "Generate Comma-separated ID Cards":
+            ids_input = st.text_area("Enter comma-separated Student IDs for Batch Generation")
+            if st.button("Generate ID Cards"):
+                if uploaded_file is not None:
+                    df = pd.read_csv(uploaded_file, converters={'ID': str})
+                    if ids_input:
+                        ids = [id.strip() for id in ids_input.split(",")]
+                        specified_data = df[df['ID'].isin(ids)]
+                        if not specified_data.empty:
+                            images = []
+                            records = specified_data.to_dict(orient='records')
+                            for record in records:
+                                card = generate_card(record, template_path, image_folder, qr_folder)
+                                if card:
+                                    images.append(card)
+                            pdf_path = create_pdf(images, output_pdf_path)
+                            st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
+                            display_pdf(pdf_path)
+                        else:
+                            st.error("No students found with the specified IDs")
                     else:
-                        st.error("No students found with the specified IDs")
+                        st.error("Please enter at least one Student ID")
                 else:
-                    st.error("Please enter at least one Student ID")
-            else:
-                st.error("Please upload a CSV file first.")
+                    st.error("Please upload a CSV file first.")
         
         # Button to generate ID cards for all students
-        if st.button("Generate ID Cards for All Students"):
-            if uploaded_file is not None:
-                df = pd.read_csv(uploaded_file, converters={'ID': str})
-                images = []
-                records = df.to_dict(orient='records')
-                for record in records:
-                    card = generate_card(record, template_path, image_folder, qr_folder)
-                    if card:
-                        images.append(card)
-                pdf_path = create_pdf(images, output_pdf_path)
-                st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
-                display_pdf(pdf_path)
-            else:
-                st.error("Please upload a CSV file first.")
+        if generate_option == "Generate All ID Cards":
+            if st.button("Generate ID Cards for All Students"):
+                if uploaded_file is not None:
+                    df = pd.read_csv(uploaded_file, converters={'ID': str})
+                    images = []
+                    records = df.to_dict(orient='records')
+                    for record in records:
+                        card = generate_card(record, template_path, image_folder, qr_folder)
+                        if card:
+                            images.append(card)
+                    pdf_path = create_pdf(images, output_pdf_path)
+                    st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
+                    display_pdf(pdf_path)
+                else:
+                    st.error("Please upload a CSV file first.")
     
     # Right column
     with col2:
@@ -310,6 +317,5 @@ def main():
             # Display the uploaded data
             st.write("Uploaded CSV file:")
             edited_data = st.data_editor(df)
-
-if __name__ == "__main__":
+    if __name__ == "__main__":
     main()
