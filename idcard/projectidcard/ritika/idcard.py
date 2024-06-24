@@ -24,7 +24,7 @@ def generate_card(data, template_path, downloaded_images, qr_folder):
         st.warning(f"Skipping record with missing ID: {data}")
         return None
     
-    pic_path = os.path.join(downloaded_images, f"{pic_id}.jpg")
+    pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
     if not os.path.exists(pic_path):
         st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
         return None
@@ -194,11 +194,10 @@ def display_pdf(pdf_path):
 def main():
     st.title("Automatic ID Card Generation")
     
-    # Hardcoded paths (adjust as per your actual folder structure)
-    template_path = r"idcard/projectidcard/ritika/ST.png"
-    downloaded_images = r"idcard/projectidcard/ritika/downloaded_images"
-    qr_folder = r"idcard/projectidcard/ritika/ST_output_qr_codes"
-    output_pdf_path = r"C:\Users\Shree\Desktop\generated_id_cards.pdf"
+    template_path = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST.png"
+    image_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\downloaded_images"
+    qr_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST_output_qr_codes"
+    output_pdf_path = "C:\\Users\\Shree\\Desktop\\generated_id_cards.pdf"
 
     # Upload CSV file with data
     st.sidebar.header('Upload CSV')
@@ -221,7 +220,7 @@ def main():
         if st.sidebar.button('Browse'):
             if os.path.exists(image_folder_path):
                 image_folder = image_folder_path
-                st.sidebar.success(f"Updated image folder path: {downloaded_images}")
+                st.sidebar.success(f"Updated image folder path: {image_folder}")
             else:
                 st.sidebar.error("Path does not exist!")
 
@@ -238,7 +237,7 @@ def main():
                 else:
                     generated_images = []
                     for index, row in selected_data.iterrows():
-                        card = generate_card(row, template_path, downloaded_images, qr_folder)
+                        card = generate_card(row, image_folder , qr_folder)
                         if card is not None:
                             generated_images.append(card)
                     if generated_images:
