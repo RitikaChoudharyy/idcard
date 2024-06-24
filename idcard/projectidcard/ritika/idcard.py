@@ -15,31 +15,40 @@ except ImportError:
     REMBG_AVAILABLE = False
     st.warning("Background removal library 'rembg' is not available. ID cards will be generated without background removal.")
 
+# Global list to store generated IDs
+generated_ids = []
+
 # Function to preprocess image (remove background and convert to RGB), handle if rembg is not available
 def preprocess_image(image_path):
     input_image = Image.open(image_path)
     
+    # If rembg library is available, remove background and convert to RGBA
     if REMBG_AVAILABLE:
         output_image = remove(input_image)
-        # Convert the background to white
         white_bg = Image.new("RGBA", output_image.size, "WHITE")
         final_image = Image.alpha_composite(white_bg, output_image)
     else:
-        # Convert the image to RGB mode without background removal
+        # Convert the image to RGB mode and set background to white
         final_image = input_image.convert("RGB")
     
     return final_image
 
+
 # Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
+    global generated_ids
+    pic_id = str(data.get('ID', ''))
+    
+    # Check if ID already generated to avoid duplicates
+    if pic_id in generated_ids:
+        st.warning(f"Skipping duplicate ID: {pic_id}")
+        return None
+    
+    generated_ids.append(pic_id)
+    
     if not os.path.exists(template_path):
         st.error(f"Template image not found at the specified location: {template_path}")
         st.stop()
-    
-    pic_id = str(data.get('ID', ''))
-    if not pic_id:
-        st.warning(f"Skipping record with missing ID: {data}")
-        return None
     
     pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
     if not os.path.exists(pic_path):
@@ -208,37 +217,69 @@ def display_pdf(pdf_path):
             image_bytes = base64.b64encode(base_image["image"])
             st.image(base_image["image"], caption="Generated ID Card")
 
+# Main Streamlit app
 def main():
     st.title("Automatic ID Card Generation")
     
     # Hardcoded paths (adjust as per your actual folder structure)
     template_path = r"idcard/projectidcard/ritika/ST.png"
-    image_folder = r"idcard/projectidcard/ritika/images"  # Update this path with your actual image folder path
-    qr_folder = r"idcard/projectidcard/ritika/qr_codes"  # Update this path with your actual QR code folder path
+    image_folder = r"idcard/projectidcard/ritika/downloaded_images"
+    qr_folder = r"idcard/projectidcard/ritika/ST_output_qr_codes"
+    output_pdf_path = r"C:\Users\Shree\Desktop\generated_id_cards.pdf"
 
-    # Sidebar to upload CSV file
-    st.sidebar.title("Upload CSV")
-    uploaded_file = st.sidebar.file_uploader("Upload your CSV file", type=["csv"])
+
     
-    if uploaded_file is not None:
-        df = pd.read_csv(uploaded_file)
-
-        # Button to generate ID cards
-        if st.sidebar.button("Generate ID Cards"):
+    # Upload CSV file with data
+    st.sidebar.header('Upload CSV')
+    csv_file = st.sidebar.file_uploader("Upload your CSV file", type=['csv'])
+    
+    if csv_file is not None:
+        try:
+            data = pd.read_csv(csv_file)
+        except Exception as e:
+            st.sidebar.error(f"Error reading CSV file: {str(e)}")
+            return
+        
+        # Display the uploaded data
+        st.sidebar.subheader('Uploaded Data')
+        st.sidebar.write(data)
+        
+        # Generate ID cards
+        st.subheader('Generate ID Cards')
+        generate_button = st.button('Generate ID Cards')
+        
+        if generate_button:
+            st.info('Generating ID cards...')
             generated_images = []
-
-            for index, row in df.iterrows():
+            
+            for index, row in data.iterrows():
                 card = generate_card(row, template_path, image_folder, qr_folder)
-                if card:
+                if card is not None:
                     generated_images.append(card)
-
+            
             if generated_images:
-                # Button to create PDF
-                if st.button("Create PDF"):
-                    pdf_path = create_pdf(generated_images, "generated_id_cards.pdf")
-                    st.success(f"PDF successfully created! You can download it using the button below.")
-                    display_pdf(pdf_path)
+                st.success('ID cards generated successfully!')
+                st.subheader('Preview Generated ID Cards')
+                for image in generated_images:
+                    st.image(image, use_column_width=True)
+                
+                # Create PDF from generated ID cards
+                st.subheader('Download PDF')
+                pdf_download_button = st.button('Download PDF')
+                
+                if pdf_download_button:
+                    try:
+                        pdf_path = create_pdf(generated_images, output_pdf_path)
+                        st.success(f'PDF successfully generated: [{pdf_path}]')
+                        
+                        # Display PDF and download button
+                        display_pdf(pdf_path)
+                    
+                    except Exception as e:
+                        st.error(f'Error generating PDF: {str(e)}')
+            
             else:
-                st.warning("No ID cards generated. Please check your input data and try again.")
-if __name__ == "__main__":
+                st.warning('No ID cards generated. Please check the input data and try again.')
+
+if _name_ == '_main_':
     main()
