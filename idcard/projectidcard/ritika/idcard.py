@@ -6,33 +6,6 @@ import textwrap
 from fpdf import FPDF
 import fitz  # PyMuPDF
 import base64
-
-# Import rembg for background removal if available
-try:
-    from rembg import remove  # Assuming this library is correctly installed
-    REMBG_AVAILABLE = True
-except ImportError:
-    REMBG_AVAILABLE = False
-    st.warning("Background removal library 'rembg' is not available. ID cards will be generated without background removal.")
-
-# Global list to store generated IDs
-generated_ids = []
-
-# Function to preprocess image (remove background and convert to RGB), handle if rembg is not available
-def preprocess_image(image_path):
-    input_image = Image.open(image_path)
-    
-    # If rembg library is available, remove background and convert to RGBA
-    if REMBG_AVAILABLE:
-        output_image = remove(input_image)
-        white_bg = Image.new("RGBA", output_image.size, "WHITE")
-        final_image = Image.alpha_composite(white_bg, output_image)
-    else:
-        # Convert the image to RGB mode and set background to white
-        final_image = input_image.convert("RGB")
-    
-    return final_image
-
 # Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
     global generated_ids
