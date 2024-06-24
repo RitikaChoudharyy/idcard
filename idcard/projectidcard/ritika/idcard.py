@@ -248,4 +248,5 @@ def main():
                     display_pdf(pdf_path)
             else:
                 st.warning("No ID cards generated. Please check your input data and try again.")
-
+if __name__ == "__main__":
+    main()
