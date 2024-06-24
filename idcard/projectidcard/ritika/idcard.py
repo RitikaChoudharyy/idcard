@@ -160,10 +160,10 @@ def display_pdf(pdf_path):
 
 def main():
     st.title("Automatic ID Card Generation")
-    template_path = r"idcard/projectidcard/ritika/ST.png"
-    image_folder = r"idcard/projectidcard/ritika/downloaded_images"
-    qr_folder = r"idcard/projectidcard/ritika/ST_output_qr_codes"
-    output_pdf_path = r"C:\Users\Shree\Desktop\generated_id_cards.pdf"
+    template_path = "idcard/projectidcard/ritika/ST.png"
+    image_folder = "idcard/projectidcard/ritika/downloaded_images"
+    qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
+    output_pdf_path = "C:\Users\Shree\Desktop\generated_id_cards.pdf"
     csv_file = st.sidebar.file_uploader("Upload your CSV file", type=['csv'])
 
     if csv_file is not None:
