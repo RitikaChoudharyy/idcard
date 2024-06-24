@@ -6,7 +6,6 @@ import textwrap
 from fpdf import FPDF
 import fitz  # PyMuPDF
 import base64
-import rembg
 
 # Import rembg for background removal if available
 try:
@@ -30,6 +29,9 @@ def preprocess_image(image_path):
         final_image = input_image.convert("RGB")
     
     return final_image
+
+# (Rest of the code remains the same)
+
 
 # Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
