@@ -1,40 +1,38 @@
+#this is the code of removing background 
 import streamlit as st
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 import pandas as pd
 import os
 import textwrap
 from fpdf import FPDF
-import fitz  # PyMuPDF
+import fitz
+from io import BytesIO
 import base64
-
-# Import rembg for background removal if available
-try:
-    from rembg import remove  # Assuming this library is correctly installed
-    REMBG_AVAILABLE = True
-except ImportError:
-    REMBG_AVAILABLE = False
-    st.warning("Background removal library 'rembg' is not available. ID cards will be generated without background removal.")
-
-# Function to preprocess image (remove background and convert to RGB), handle if rembg is not available
+import cv2
+import numpy as np
+from rembg import remove
+from PIL import Image
 def preprocess_image(image_path):
     input_image = Image.open(image_path)
-    
-    if REMBG_AVAILABLE:
-        output_image = remove(input_image)
-        # Convert the background to white
-        white_bg = Image.new("RGBA", output_image.size, "WHITE")
-        final_image = Image.alpha_composite(white_bg, output_image)
-    else:
-        # Convert the image to RGB mode without background removal
-        final_image = input_image.convert("RGB")
-    
-    return final_image
+    output_image = remove(input_image)
 
-# Function to generate ID card
+    # Convert the background to white
+    white_bg = Image.new("RGBA", output_image.size, "WHITE")
+    final_image = Image.alpha_composite(white_bg, output_image)
+
+    # Convert to RGB mode
+    final_image = final_image.convert("RGB")
+
+    return final_image
+# Title with image
+image = Image.open("logo.jpg.png")
+st.image(image, use_column_width=True)
+
+
 def generate_card(data, template_path, image_folder, qr_folder):
     if not os.path.exists(template_path):
-        st.error(f"Template image not found at the specified location: {template_path}")
-        st.stop()
+        st.error("Template image not found at the specified location.")
+        return None
     
     pic_id = str(data.get('ID', ''))
     if not pic_id:
@@ -52,62 +50,50 @@ def generate_card(data, template_path, image_folder, qr_folder):
         return None
 
     # Preprocess the image
-    try:
-        preprocessed_pic = preprocess_image(pic_path)
-        preprocessed_pic = preprocessed_pic.resize((144, 145))
-    except Exception as e:
-        st.error(f"Error preprocessing image for ID: {pic_id}. Error: {str(e)}")
-        return None
+    preprocessed_pic = preprocess_image(pic_path)
+    preprocessed_pic = preprocessed_pic.resize((144, 145))
 
-    try:
-        template = Image.open(template_path)
-        qr = Image.open(qr_path).resize((161, 159))
-        
-        template.paste(preprocessed_pic, (27, 113, 171, 258))
-        template.paste(qr, (497, 109, 658, 268))
-        
-        draw = ImageDraw.Draw(template)
-        
-        # Load Arial font with fallback to default system font
-        try:
-            font_path = "C:\\WINDOWS\\FONTS\\ARIAL.TTF"
-            name_font = ImageFont.truetype(font_path, size=18)
-        except IOError:
-            name_font = ImageFont.load_default()  # Fallback to default font if Arial is not available
-        
-        font_size = 18
-        
-        wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
-        draw.text((311, 121), wrapped_div, font=name_font, fill='black')
-        draw.text((200, 356), data['University '], font=name_font, fill='black')
-        
-        division_input = data['Division/Section']
-        head_name = get_head_by_division(division_input)
-        
-        wrapped_supri = textwrap.fill(str(head_name), width=20).title()
-        draw.text((311, 170), wrapped_supri, font=name_font, fill='black')
-        
-        draw.text((305, 219), data['Internship Start Date'], font=name_font, fill='black')
-        draw.text((303, 266), data['Internship End Date'], font=name_font, fill='black')
-        draw.text((300, 312), str(data['Mobile']), font=name_font, fill='black')
-        draw.text((621, 283), str(data['ID']), font=name_font, fill='black')
-        
-        # Adjusted for name wrapping
-        wrapped_name = center_align_text_wrapper(data['Name'], width=22)
-        
-        # Get the text size using ImageFont.textbbox()
-        name_bbox = name_font.getbbox(wrapped_name)
-        name_width = name_bbox[2] - name_bbox[0]
-        
-        # Calculate the x-coordinate to center the text name
-        center_x = ((198 - name_width) / 2)
-        draw.text((center_x, 260), wrapped_name, font=name_font, fill='black')
-        
-        return template
+    template = Image.open(template_path)
+    qr = Image.open(qr_path).resize((161, 159))
     
-    except Exception as e:
-        st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
-        return None
+    template.paste(preprocessed_pic, (27, 113, 171, 258))
+    template.paste(qr, (497, 109, 658, 268))
+    
+    draw = ImageDraw.Draw(template)
+    font = ImageFont.truetype("arial.ttf", size=18)  # Adjust the font path as needed
+    
+    wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
+    draw.text((311, 121), wrapped_div, font=font, fill='black')
+    draw.text((200, 356), data['University '], font=font, fill='black')
+    
+    division_input = data['Division/Section']
+    head_name = get_head_by_division(division_input)
+    
+    wrapped_supri = textwrap.fill(str(head_name), width=20).title()
+    draw.text((311, 170), wrapped_supri.title(), font=font, fill='black')
+    
+    draw.text((305, 219), data['Internship Start Date'], font=font, fill='black')
+    draw.text((303, 266), data['Internship End Date'], font=font, fill='black')
+    draw.text((300, 312), str(data['Mobile']), font=font, fill='black')
+    draw.text((621, 283), str(data['ID']), font=font, fill='black')
+
+    # Adjusted for name wrapping
+    name_font = ImageFont.truetype("arial.ttf", size=18)  # Adjust the font path as needed
+    wrapped_name = center_align_text_wrapper(data['Name'], width=22)
+    
+    # Get the text size using ImageFont.textbbox()
+    name_bbox = name_font.getbbox(wrapped_name)
+    name_width = name_bbox[2] - name_bbox[0]
+    
+    # Calculate the x-coordinate to center the text name
+    center_x = ((198 - name_width) / 2 )
+    draw.text((center_x, 260), wrapped_name.title(), font=name_font, fill='black')
+    
+    return template
+
+
+
+    
 
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
@@ -199,6 +185,13 @@ def display_pdf(pdf_path):
         file_name="generated_id_cards.pdf",
         mime="application/pdf"
     )
+    print_js = """
+    <script>
+        // Your JavaScript code here
+        console.log("Hello from JavaScript!");
+    </script>
+    """
+    st.markdown(print_js, unsafe_allow_html=True)
 
     # Display ID card images directly
     for page in doc:
@@ -212,35 +205,32 @@ def display_pdf(pdf_path):
 def main():
     st.title("Automatic ID Card Generation")
     
-    # Hardcoded paths (adjust as per your actual folder structure)
-    template_path = r"idcard/projectidcard/ritika/ST.png"
-    image_folder = r"idcard/projectidcard/ritika/downloaded_images"
-    qr_folder = r"idcard/projectidcard/ritika/ST_output_qr_codes"
-    output_pdf_path = r"C:\Users\Shree\Desktop\generated_id_cards.pdf"
+    template_path = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST.png"
+    image_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\downloaded_images"
+    qr_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST_output_qr_codes"
+    output_pdf_path = "C:\\Users\\Shree\\Desktop\\generated_id_cards.pdf"
 
-    # Divide the layout into two columns
-    col1, col2 = st.columns([1, 3])
+    # File uploader for CSV files
+    uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
 
-    # Left column
-    with col1:
-        st.header("Controls")
-        
-        # Browse for images folder
-        st.subheader("Browse Images Folder")
-        image_folder = st.text_input("Images Folder Path", image_folder)
-        
-        # Browse for QR codes folder
-        st.subheader("Browse QR Codes Folder")
-        qr_folder = st.text_input("QR Codes Folder Path", qr_folder)
-        
-        # Browse for CSV file
-        uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
-        
-        # Text input for individual student ID card generation
+    if uploaded_file is not None:
+        # Read the uploaded CSV file into a DataFrame
+        df = pd.read_csv(uploaded_file, converters={'ID': str})
+
+        # Check for duplicates and remove them
+        df = df.drop_duplicates()
+
+        # Display the uploaded data
+        st.write("Uploaded CSV file:")
+        edited_data = st.data_editor(df)
+        st.write(df)
+
+        # Get student ID for individual ID card generation
         student_id = st.text_input("Enter Student ID for Individual ID Card Generation")
+
+        # Button to generate ID card for a specific student
         if st.button("Generate ID Card for Individual Student"):
-            if uploaded_file is not None:
-                df = pd.read_csv(uploaded_file, converters={'ID': str})
+            if student_id:
                 student_data = df[df['ID'] == student_id]
                 if not student_data.empty:
                     card = generate_card(student_data.iloc[0], template_path, image_folder, qr_folder)
@@ -251,63 +241,22 @@ def main():
                 else:
                     st.error(f"No student found with ID: {student_id}")
             else:
-                st.error("Please upload a CSV file first.")
-        
-        # Text area for comma-separated student IDs for batch generation
-        ids_input = st.text_area("Enter comma-separated Student IDs for Batch Generation")
-        if st.button("Generate ID Cards for Specified IDs"):
-            if uploaded_file is not None:
-                df = pd.read_csv(uploaded_file, converters={'ID': str})
-                if ids_input:
-                    ids = [id.strip() for id in ids_input.split(",")]
-                    specified_data = df[df['ID'].isin(ids)]
-                    if not specified_data.empty:
-                        images = []
-                        records = specified_data.to_dict(orient='records')
-                        for record in records:
-                            card = generate_card(record, template_path, image_folder, qr_folder)
-                            if card:
-                                images.append(card)
-                        pdf_path = create_pdf(images, output_pdf_path)
-                        st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
-                        display_pdf(pdf_path)
-                    else:
-                        st.error("No students found with the specified IDs")
-                else:
-                    st.error("Please enter at least one Student ID")
-            else:
-                st.error("Please upload a CSV file first.")
-        
+                st.error("Please enter a Student ID")
+
         # Button to generate ID cards for all students
         if st.button("Generate ID Cards for All Students"):
-            if uploaded_file is not None:
-                df = pd.read_csv(uploaded_file, converters={'ID': str})
-                images = []
-                records = df.to_dict(orient='records')
-                for record in records:
-                    card = generate_card(record, template_path, image_folder, qr_folder)
-                    if card:
-                        images.append(card)
-                pdf_path = create_pdf(images, output_pdf_path)
-                st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
-                display_pdf(pdf_path)
-            else:
-                st.error("Please upload a CSV file first.")
-    
-    # Right column
-    with col2:
-        st.header("Uploaded Data and Generated PDF")
-        
-        if uploaded_file is not None:
-            # Read the uploaded CSV file into a DataFrame
-            df = pd.read_csv(uploaded_file, converters={'ID': str})
-            
-            # Check for duplicates and remove them
-            df = df.drop_duplicates()
-            
-            # Display the uploaded data
-            st.write("Uploaded CSV file:")
-            edited_data = st.data_editor(df)
+            images = []
+            records = edited_data.to_dict(orient='records')
+            for record in records:
+                card = generate_card(record, template_path, image_folder, qr_folder)
+                if card:
+                    images.append(card)
+
+            # Create and display the PDF
+            pdf_path = create_pdf(images, output_pdf_path)
+            st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
+            display_pdf(pdf_path)
 
 if __name__ == "__main__":
     main()
+
