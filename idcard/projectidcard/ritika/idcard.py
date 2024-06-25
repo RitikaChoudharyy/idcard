@@ -180,23 +180,6 @@ def display_pdf(pdf_path):
             base_image = doc.extract_image(xref)
             st.image(base_image["image"], caption="Generated ID Card")
 
-# Function to display the CSV data in the sidebar
-def display_csv_data(csv_data, csv_file):
-    csv_data_placeholder = st.empty()
-    st.sidebar.subheader('CSV Data Preview')
-    df_edited = st.dataframe(csv_data)
-    df_edited = df_edited.drop_duplicates()  # Corrected variable name from `df` to `df_edited`
-    edited_data = st.data_editor(df_edited)
-    st.write(df_edited)
-    if st.button('Save Changes'):
-        edited_data.to_csv(csv_file.name, index=False)
-        st.success(f'CSV file "{csv_file.name}" updated successfully.')
-        # Refresh the sidebar preview after saving
-        csv_data = pd.read_csv(csv_file)
-        csv_data_placeholder.dataframe(csv_data)
-
-
-# Main function
 def main():
     st.title("Automatic ID Card Generation")
     
@@ -214,7 +197,19 @@ def main():
             csv_data = pd.read_csv(csv_file)
             st.sidebar.success('CSV file successfully uploaded/updated.')
 
-            display_csv_data(csv_data, csv_file)
+            st.sidebar.subheader('CSV Data Preview')
+            st.sidebar.write(csv_data)
+
+            modified_csv = st.sidebar.checkbox('Modify CSV')
+
+            if modified_csv:
+                st.subheader('Edit CSV')
+                df = csv_data.copy()
+                df_edited = st.dataframe(df)
+
+                if st.button('Save Changes'):
+                    df_edited.to_csv(csv_file.name, index=False)
+                    st.success(f'CSV file "{csv_file.name}" updated successfully.')
 
             st.subheader('Generate ID Cards')
             generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
@@ -316,11 +311,10 @@ def main():
                             st.image(image, use_column_width=True)
                     else:
                         st.warning('No ID card(s) generated.')
-
         except pd.errors.EmptyDataError:
             st.error('CSV file is empty or not loaded correctly. Please upload a valid CSV file.')
         except Exception as e:
             st.error(f'An unexpected error occurred: {str(e)}')
-
-if __name__ == "__main__":
+            
+if _name_ == "_main_":
     main()
