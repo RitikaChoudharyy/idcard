@@ -124,6 +124,7 @@ def get_head_by_division(division_name):
         "Semiconductor Process Technology Group": "Dr. Kuldip Singh",
         "Industrial R & D": "Mr. Ashok Chauhan",
         "High Power Microwave Systems Group": "Dr. Anirban Bera",
+    }
 
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
@@ -216,8 +217,7 @@ def main():
 
     st.subheader('Generate ID Cards')
     generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
-
-    if generate_mode == 'Individual ID':
+        if generate_mode == 'Individual ID':
         id_input = st.text_input('Enter the ID:')
         if st.button('Generate ID Card'):
             if not id_input.isdigit():
@@ -326,3 +326,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
