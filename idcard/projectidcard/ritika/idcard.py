@@ -183,6 +183,7 @@ def display_pdf(pdf_path):
 def main():
     st.title("Automatic ID Card Generation")
     
+    # Update these paths according to your file locations
     template_path = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST.png"
     image_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika"
     qr_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST_output_qr_codes"
