@@ -6,6 +6,8 @@ import textwrap
 from fpdf import FPDF
 import fitz  # PyMuPDF
 import base64
+import numpy as np
+import cv2
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
@@ -17,8 +19,23 @@ def preprocess_image(image_path):
         st.error(f"Error opening image at {image_path}: {str(e)}")
         return None
 
+# Function to remove background and replace with white
+def remove_background(image):
+    try:
+        img_array = np.array(image)
+        gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+        _, thresh = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        cv2.drawContours(thresh, contours, -1, (255, 255, 255), thickness=cv2.FILLED)
+        result = cv2.bitwise_and(img_array, img_array, mask=thresh)
+        result_img = Image.fromarray(result)
+        return result_img
+    except Exception as e:
+        st.error(f"Error removing background: {str(e)}")
+        return None
+
 # Function to generate ID card
-def generate_card(data, template_path, image_folder, qr_folder):
+def generate_card(data, template_path, image_folder, qr_folder, remove_bg=False):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
         st.warning(f"Skipping record with missing ID: {data}")
@@ -42,6 +59,12 @@ def generate_card(data, template_path, image_folder, qr_folder):
     preprocessed_pic = preprocess_image(pic_path)
     if preprocessed_pic is None:
         return None
+
+    # Optionally remove background
+    if remove_bg:
+        preprocessed_pic = remove_background(preprocessed_pic)
+        if preprocessed_pic is None:
+            return None
     
     try:
         preprocessed_pic = preprocessed_pic.resize((144, 145))
@@ -302,6 +325,16 @@ def main():
                         st.image(image, use_column_width=True)
                 else:
                     st.warning('No ID card(s) generated.')
+
+        # Button to remove background of downloaded images
+        if st.button('Remove Background of Downloaded Images'):
+            for image_name in os.listdir(image_folder):
+                if image_name.endswith('.jpg'):
+                    image_path = os.path.join(image_folder, image_name)
+                    img = Image.open(image_path)
+                    img_with_white_bg = remove_background(img)
+                    if img_with_white_bg is not None:
+                        img_with_white_bg.save(image_path)
 
 if __name__ == "__main__":
     main()
