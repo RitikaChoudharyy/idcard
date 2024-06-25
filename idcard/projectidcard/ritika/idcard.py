@@ -206,6 +206,7 @@ def main():
                 st.subheader('Edit CSV')
                 df = csv_data.copy()
                 df_edited = st.dataframe(df)
+                st.write()
 
                 if st.button('Save Changes'):
                     df_edited.to_csv(csv_file.name, index=False)
@@ -315,6 +316,5 @@ def main():
             st.error('CSV file is empty or not loaded correctly. Please upload a valid CSV file.')
         except Exception as e:
             st.error(f'An unexpected error occurred: {str(e)}')
-
-if _name_ == "_main_":
+if __name__ == "__main__":
     main()
