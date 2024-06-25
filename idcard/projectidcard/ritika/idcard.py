@@ -199,15 +199,13 @@ def main():
 
             st.sidebar.subheader('CSV Data Preview')
             csv_data_placeholder = st.empty()  # Placeholder for displaying CSV data
-
-            modified_csv = st.sidebar.checkbox('Modify CSV')
-            if modified_csv:
                 st.subheader('Edit CSV')
                 df_edited = st.dataframe(csv_data) 
-                df = df.drop_duplicates()
-                edited_data = st.data_editor(df)
-                st.write(df)
-                if st.button('Save Changes'):
+                df_edited = df_edited.drop_duplicates()  # Corrected variable name from `df` to `df_edited`
+                edited_data = st.data_editor(df_edited)
+                st.write(df_edited)
+
+    if st.button('Save Changes'):
                     edited_data.to_csv(csv_file.name, index=False)
                     st.success(f'CSV file "{csv_file.name}" updated successfully.')
                     # Refresh the sidebar preview after saving
