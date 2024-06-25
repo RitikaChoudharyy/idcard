@@ -112,73 +112,6 @@ def center_align_text_wrapper(text, width=15):
 
     return centered_text
 
-# Function to get the head by division
-def get_head_by_division(division_name):
-    divisions = {
-        "Advanced Information Technologies Group": "Dr. Sanjay Singh",
-        "Societal Electronics Group": "Dr. Udit Narayan Pal",
-        "Industrial Automation": "Dr. S.S. Sadistap",
-        "Vacuum Electronic Devices Group": "Dr. Sanjay Kr. Ghosh",
-        "High-Frequency Devices & System Group": "Dr. Ayan Bandhopadhyay",
-        "Semiconductor Sensors & Microsystems Group": "Dr. Suchandan Pal",
-        "Semiconductor Process Technology Group": "Dr. Kuldip Singh",
-        "Industrial R & D": "Mr. Ashok Chauhan",
-        "High Power Microwave Systems Group": "Dr. Anirban Bera",
-    }
-
-    division_name = division_name.strip().title()
-    return divisions.get(division_name, "Division not found or head information not available.")
-
-# Function to create a PDF from the generated ID cards
-def create_pdf(images, pdf_path):
-    pdf = FPDF()
-    cards_per_page = 8
-    num_pages = -(-len(images) // cards_per_page)
-    
-    for page_num in range(num_pages):
-        pdf.add_page()
-        
-        for i in range(cards_per_page):
-            card_index = page_num * cards_per_page + i
-            if card_index < len(images):
-                card = images[card_index]
-                temp_image_path = f"temp_image_{card_index}.jpg"
-                if card.mode == 'RGBA':
-                    card = card.convert('RGB')
-                card.save(temp_image_path)
-                
-                col = i % 4
-                row = i // 4
-                x_offset = col * (pdf.w / 4 - 10)
-                y_offset = row * (pdf.h / 2 - 10)
-                
-                pdf.image(temp_image_path, x=5 + x_offset, y=5 + y_offset, w=pdf.w / 4 - 10)
-                os.remove(temp_image_path)
-    
-    pdf.output(pdf_path)
-    return pdf_path
-
-# Function to display the PDF in Streamlit
-def display_pdf(pdf_path):
-    doc = fitz.open(pdf_path)
-    pdf_bytes = doc.convert_to_pdf()
-    b64_pdf = base64.b64encode(pdf_bytes).decode()
-
-    pdf_display = f'<iframe src="data:application/pdf;base64,{b64_pdf}" width="700" height="1000" type="application/pdf"></iframe>'
-    st.markdown(pdf_display, unsafe_allow_html=True)
-
-    st.download_button(
-        label="Download PDF",
-        data=pdf_bytes,
-        file_name="generated_id_cards.pdf",
-        mime="application/pdf"
-    )
-
-    for page in doc:
-        for img in page.get_images(full=True):
-            xref = img[0]
-            base_image = doc.extract_image(xref)
-            st.image(base_image["image"], caption="Generated ID Card")
 def main():
     st.title("Automatic ID Card Generation")
     
@@ -213,7 +146,7 @@ def main():
                         st.success(f'CSV file "{csv_file.name}" updated successfully.')
 
             # Main content area
-            col1, col2 = st.beta_columns(2)
+            col1, col2 = st.columns(2)
 
             # Generate ID cards
             with col1:
