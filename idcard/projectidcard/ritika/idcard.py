@@ -205,7 +205,9 @@ def main():
             if modified_csv:
                 st.subheader('Edit CSV')
                 df_edited = st.dataframe(csv_data)  # Display CSV data in main column
-                if st.button('Save Changes'):
+                edited_data = st.data_editor(df)
+                st.write(df)
+            if st.button('Save Changes'):
                     df_edited.to_csv(csv_file.name, index=False)
                     st.success(f'CSV file "{csv_file.name}" updated successfully.')
                     # Refresh the sidebar preview after saving
