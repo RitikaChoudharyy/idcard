@@ -222,7 +222,7 @@ def main():
                         st.warning('Invalid input. Please enter a valid numeric ID.')
                     else:
                         selected_data = csv_data[csv_data['ID'] == int(id_input)]
-                    if selected_data.empty:
+                                                    if selected_data.empty:
                             st.warning(f"No data found for ID: {id_input}")
                         else:
                             generated_images = []
@@ -319,5 +319,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-                        
