@@ -195,17 +195,14 @@ def main():
     if csv_file is not None:
         try:
             csv_data = pd.read_csv(csv_file)
-            st.sidebar.success('CSV file successfully uploaded/updated.')
+            st.subheader('Original CSV Data')
+            st.write(csv_data)
 
-            st.sidebar.subheader('CSV Data Preview')
-            st.sidebar.write(csv_data)
-
-            modified_csv = st.sidebar.checkbox('Modify CSV')
+            modified_csv = st.checkbox('Modify CSV')
 
             if modified_csv:
                 st.subheader('Edit CSV')
-                df = csv_data.copy()
-                df_edited = st.data_editor(df)
+                df_edited = st.experimental_data_editor(csv_data)
                 st.write(df_edited)
 
                 if st.button('Save Changes'):
@@ -217,9 +214,8 @@ def main():
 
             # Hide original CSV data when editing
             if not modified_csv or df_edited is not None:
-                if st.button('Save Changes'):
-                    df_edited.to_csv(csv_file.name, index=False)
-                    st.success(f'CSV file "{csv_file.name}" updated successfully.')
+                st.subheader('Original CSV Data (Hidden)')
+                st.write('Use the checkbox above to modify CSV data.')
 
             st.subheader('Generate ID Cards')
             generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
