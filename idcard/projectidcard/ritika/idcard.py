@@ -6,7 +6,6 @@ import textwrap
 from fpdf import FPDF
 import fitz  # PyMuPDF
 import base64
-import cv2
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
@@ -185,10 +184,10 @@ def main():
     st.title("Automatic ID Card Generation")
     
     # Update these paths according to your file locations
-    template_path = "idcard/projectidcard/ritika/ST.png"
-    image_folder = "idcard/projectidcard/ritika/downloaded_images"
-    qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
-    output_pdf_path = "C:\\Users\\Shree\\Desktop\\generated_id_cards.pdf"
+    template_path =r"idcard/projectidcard/ritika/ST.png"
+    image_folder = r"idcard/projectidcard/ritika/downloaded_images"
+    qr_folder = r"idcard/projectidcard/ritika/ST_output_qr_codes"
+    output_pdf_path = r"C:\\Users\\Shree\\Desktop\\generated_id_cards.pdf"
 
     st.sidebar.header('Upload CSV')
     csv_file = st.sidebar.file_uploader("Upload your CSV file", type=['csv'])
@@ -223,29 +222,64 @@ def main():
                                 generated_images.append(card)
                         
                         if generated_images:
-                            pdf_path = create_pdf(generated_images, output_pdf_path)
-                            display_pdf(pdf_path)
+                            st.success('ID card(s) generated successfully!')
+                            pdf_download_button = st.button('Download PDF')
+
+                            if pdf_download_button:
+                                try:
+                                    pdf_path = create_pdf(generated_images, output_pdf_path)
+                                    st.success(f'PDF successfully generated: [{pdf_path}]')
+                                    display_pdf(pdf_path)
+                                except Exception as e:
+                                    st.error(f'Error generating PDF: {str(e)}')
+
+                            for image in generated_images:
+                                st.image(image, use_column_width=True)
+                        else:
+                            st.warning('No ID card(s) generated.')
 
         elif generate_mode == 'Comma-separated IDs':
-            id_input = st.text_input('Enter comma-separated IDs:')
+            ids_input = st.text_area('Enter comma-separated IDs:', value='')
             if st.button('Generate ID Cards'):
-                ids = [int(id.strip()) for id in id_input.split(',') if id.strip().isdigit()]
-                selected_data = data[data['ID'].isin(ids)]
-                if selected_data.empty:
-                    st.warning('No data found for the provided IDs.')
+                ids_list = [id.strip() for id in ids_input.split(',') if id.strip().isdigit()]
+                if not ids_list:
+                    st.warning('Invalid input. Please enter valid comma-separated IDs.')
                 else:
                     generated_images = []
-                    for index, row in selected_data.iterrows():
-                        card = generate_card(row, template_path, image_folder, qr_folder)
-                        if card is not None:
-                            generated_images.append(card)
+                    for id_input in ids_list:
+                        try:
+                            selected_data = data[data['ID'] == int(id_input)]
+                        except ValueError:
+                            st.warning(f"Skipping invalid ID: {id_input}. Please enter valid integer IDs.")
+                            continue
+                        
+                        if selected_data.empty:
+                            st.warning(f"No data found for ID: {id_input}")
+                        else:
+                            for index, row in selected_data.iterrows():
+                                card = generate_card(row, template_path, image_folder, qr_folder)
+                                if card is not None:
+                                    generated_images.append(card)
                     
                     if generated_images:
-                        pdf_path = create_pdf(generated_images, output_pdf_path)
-                        display_pdf(pdf_path)
+                        st.success('ID card(s) generated successfully!')
+                        pdf_download_button = st.button('Download PDF')
+
+                        if pdf_download_button:
+                            try:
+                                pdf_path = create_pdf(generated_images, output_pdf_path)
+                                st.success(f'PDF successfully generated: [{pdf_path}]')
+                                display_pdf(pdf_path)
+                            except Exception as e:
+                                st.error(f'Error generating PDF: {str(e)}')
+
+                        for image in generated_images:
+                            st.image(image, use_column_width=True)
+                    else:
+                        st.warning('No ID card(s) generated.')
 
         elif generate_mode == 'All Students':
-            if st.button('Generate All ID Cards'):
+            if st.button('Generate ID Cards for All Students'):
                 generated_images = []
                 for index, row in data.iterrows():
                     card = generate_card(row, template_path, image_folder, qr_folder)
@@ -253,8 +287,21 @@ def main():
                         generated_images.append(card)
                 
                 if generated_images:
-                    pdf_path = create_pdf(generated_images, output_pdf_path)
-                    display_pdf(pdf_path)
+                    st.success('ID card(s) generated successfully!')
+                    pdf_download_button = st.button('Download PDF')
 
-if __name__ == "__main__":
+                    if pdf_download_button:
+                        try:
+                            pdf_path = create_pdf(generated_images, output_pdf_path)
+                            st.success(f'PDF successfully generated: [{pdf_path}]')
+                            display_pdf(pdf_path)
+                        except Exception as e:
+                            st.error(f'Error generating PDF: {str(e)}')
+
+                    for image in generated_images:
+                        st.image(image, use_column_width=True)
+                else:
+                    st.warning('No ID card(s) generated.')
+
+if _name_ == "_main_":
     main()
