@@ -184,9 +184,9 @@ def main():
     st.title("Automatic ID Card Generation")
     
     # Update these paths according to your file locations
-    template_path =r"C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST.png"
-    image_folder = r"C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\downloaded_images"
-    qr_folder = r"C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST_output_qr_codes"
+    template_path =r"idcard/projectidcard/ritika/ST.png"
+    image_folder = r"idcard/projectidcard/ritika/downloaded_images"
+    qr_folder = r"idcard/projectidcard/ritika/ST_output_qr_codes"
     output_pdf_path = r"C:\\Users\\Shree\\Desktop\\generated_id_cards.pdf"
 
     st.sidebar.header('Upload CSV')
