@@ -203,15 +203,23 @@ def main():
 
         if modified_csv:
             st.subheader('Edit CSV')
-            st.write(csv_data)
+            # Display the CSV data for editing in the second column
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                st.write(csv_data)
+            with col2:
+                st.write('Update CSV file:')
+                updated_csv = st.text_area('', csv_data.to_csv(index=False), height=500)
 
-            st.sidebar.write('Update CSV file:')
-            updated_csv = st.text_area('', csv_data.to_csv(), height=200)
-
-            if st.sidebar.button('Save Changes'):
-                with open(csv_file.name, 'w') as f:
-                    f.write(updated_csv)
-                st.sidebar.success(f'CSV file "{csv_file.name}" updated successfully.')
+                if st.button('Save Changes'):
+                    try:
+                        updated_df = pd.read_csv(pd.compat.StringIO(updated_csv))
+                        with open(csv_file.name, 'w') as f:
+                            f.write(updated_csv)
+                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
+                        csv_data = updated_df  # Update the displayed data
+                    except Exception as e:
+                        st.error(f'Error saving CSV changes: {str(e)}')
 
     st.subheader('Generate ID Cards')
     generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
