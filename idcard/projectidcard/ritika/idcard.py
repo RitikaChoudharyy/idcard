@@ -6,23 +6,6 @@ import textwrap
 from fpdf import FPDF
 import fitz  # PyMuPDF
 import base64
-def generate_card(data, template_path, image_folder, qr_folder):
-    pic_id = str(data.get('ID', ''))
-    if not pic_id:
-        st.warning(f"Skipping record with missing ID: {data}")
-        return None
-    
-    pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
-    st.write(f"Checking image path for ID {pic_id}: {pic_path}")  # Debugging statement
-    
-    if not os.path.exists(pic_path):
-        st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
-        return None
-    
-    qr_path = os.path.join(qr_folder, f"{pic_id}.png")
-    if not os.path.exists(qr_path):
-        st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
-        return None
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
@@ -193,12 +176,11 @@ def display_pdf(pdf_path):
             base_image = doc.extract_image(xref)
             st.image(base_image["image"], caption="Generated ID Card")
 
-
 def main():
     st.title("Automatic ID Card Generation")
     
     template_path = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST.png"
-    image_folder = "C:\Users\Shree\Desktop\idcard\projectidcard\ritika"
+    image_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika"
     qr_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST_output_qr_codes"
     output_pdf_path = "C:\\Users\\Shree\\Desktop\\generated_id_cards.pdf"
 
