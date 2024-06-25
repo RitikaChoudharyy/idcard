@@ -204,11 +204,10 @@ def main():
 
             if modified_csv:
                 st.subheader('Edit CSV')
-                df = csv_data.copy()
-                df_edited = st.dataframe(df)
-                st.write(df)
-
-                if st.button('Save Changes'):
+                df = csv_data.read()
+                df_edited = st.data_editor(df)
+                st.write(df_edited)
+            if st.button('Save Changes'):
                     df_edited.to_csv(csv_file.name, index=False)
                     st.success(f'CSV file "{csv_file.name}" updated successfully.')
 
