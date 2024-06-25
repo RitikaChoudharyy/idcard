@@ -217,9 +217,6 @@ def main():
 
             # Hide original CSV data when editing
             if not modified_csv or df_edited is not None:
-                st.subheader('Original CSV Data (Hidden)')
-                st.write('Use the checkbox above to modify CSV data.')
-                
                 if st.button('Save Changes'):
                     df_edited.to_csv(csv_file.name, index=False)
                     st.success(f'CSV file "{csv_file.name}" updated successfully.')
