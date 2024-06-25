@@ -14,7 +14,7 @@ def preprocess_image(image_path):
         final_image = input_image.convert("RGB")
         return final_image
     except Exception as e:
-        st.error(f"Error opening image at image_path: {str(e)}")
+        st.error(f"Error opening image at {image_path}: {str(e)}")
         return None
 
 # Function to generate ID card
@@ -198,18 +198,11 @@ def main():
             st.sidebar.success('CSV file successfully uploaded/updated.')
 
             st.sidebar.subheader('CSV Data Preview')
-            st.sidebar.write(csv_data)
+            df_edited = st.sidebar.dataframe(csv_data, height=300)
 
-            modified_csv = st.sidebar.checkbox('Modify CSV')
-
-            if modified_csv:
-                st.subheader('Edit CSV')
-                df = csv_data.copy()
-                df_edited = st.dataframe(df)
-
-                if st.button('Save Changes'):
-                    df_edited.to_csv(csv_file.name, index=False)
-                    st.success(f'CSV file "{csv_file.name}" updated successfully.')
+            if st.sidebar.button('Save CSV'):
+                csv_data.to_csv(csv_file.name, index=False)
+                st.sidebar.success(f'CSV file "{csv_file.name}" saved successfully.')
 
             st.subheader('Generate ID Cards')
             generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
@@ -311,9 +304,9 @@ def main():
                             st.image(image, use_column_width=True)
                     else:
                         st.warning('No ID card(s) generated.')
-        except pd.errors.EmptyDataError:
-            st.error('CSV file is empty or not loaded correctly. Please upload a valid CSV file.')
+
         except Exception as e:
-            st.error(f'An unexpected error occurred: {str(e)}')
+            st.error(f"Error: {e}")
+
 if __name__ == "__main__":
     main()
