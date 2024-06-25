@@ -123,9 +123,9 @@ def get_head_by_division(division_name):
         "Semiconductor Sensors & Microsystems Group": "Dr. Suchandan Pal",
         "Semiconductor Process Technology Group": "Dr. Kuldip Singh",
         "Industrial R & D": "Mr. Ashok Chauhan",
-        "High Power Microwave Systems Group": "Dr. Anirban Bera",
+        "High Power Microwave Systems Group": "Dr. Anirban Bera"
     }
-
+    
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
@@ -195,28 +195,33 @@ def main():
     if csv_file is not None:
         try:
             csv_data = pd.read_csv(csv_file)
-            st.sidebar.success('CSV file successfully uploaded/updated.')
+            if csv_data.empty:
+                st.error('The uploaded CSV file is empty.')
+                csv_data = None
+            else:
+                st.sidebar.success('CSV file successfully uploaded/updated.')
 
-            st.sidebar.subheader('CSV Data Preview')
-            st.sidebar.write(csv_data)
+                st.sidebar.subheader('CSV Data Preview')
+                st.sidebar.write(csv_data)
 
-            modified_csv = st.sidebar.checkbox('Modify CSV')
+                modified_csv = st.sidebar.checkbox('Modify CSV')
 
-            if modified_csv:
-                st.subheader('Edit CSV')
-                df = pd.read_csv(csv_file)
-                df_edited = st.dataframe(df)
+                if modified_csv:
+                    st.subheader('Edit CSV')
+                    df = pd.read_csv(csv_file)
+                    df_edited = st.dataframe(df)
 
-                if st.button('Save Changes'):
-                    df_edited.to_csv(csv_file.name, index=False)
-                    st.success(f'CSV file "{csv_file.name}" updated successfully.')
+                    if st.button('Save Changes'):
+                        df_edited.to_csv(csv_file.name, index=False)
+                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
 
         except pd.errors.EmptyDataError:
             st.error('The uploaded CSV file is empty or malformed.')
             csv_data = None
 
     st.subheader('Generate ID Cards')
-    generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
+    generate_mode = st.radio("Select ID card generation mode:",('Individual ID', 'Comma-separated IDs', 'All Students'))
+
     if generate_mode == 'Individual ID':
         id_input = st.text_input('Enter the ID:')
         if st.button('Generate ID Card'):
