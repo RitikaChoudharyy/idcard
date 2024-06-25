@@ -206,7 +206,7 @@ def main():
                 st.subheader('Edit CSV')
                 df = csv_data.copy()
                 df_edited = st.dataframe(df)
-                st.write()
+                st.write(df)
 
                 if st.button('Save Changes'):
                     df_edited.to_csv(csv_file.name, index=False)
