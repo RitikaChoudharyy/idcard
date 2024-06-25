@@ -205,6 +205,8 @@ def main():
             if modified_csv:
                 st.subheader('Edit CSV')
                 df_edited = st.dataframe(csv_data)  # Display CSV data in main column
+                df = pd.read_csv(uploaded_file, converters={'ID': str})
+                df = df.drop_duplicates()
                 edited_data = st.data_editor(df)
                 st.write(df)
             if st.button('Save Changes'):
