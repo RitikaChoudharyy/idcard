@@ -199,30 +199,12 @@ def main():
 
             # Checkbox for modifying CSV in col2
             modified_csv = st.sidebar.checkbox('Modify CSV')
-
             if modified_csv:
                 st.subheader('Edit CSV')
-                # Display editable DataFrame below the checkbox
-                with st.expander("View/Modify CSV"):
-                    # Use st.aggrid to display and edit the CSV
-                    df_edited = st.aggrid(csv_data, editable=True)
-
-                    # Automatically save changes to CSV when data is edited
-                    if st.session_state.csv_data_updated:
-                        df_edited.to_csv(csv_file.name, index=False)
-                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
-                        st.session_state.csv_data_updated = False  # Reset the flag
-
-                    # Store the initial state of csv_data in session state
-                    if 'csv_data_updated' not in st.session_state:
-                        st.session_state.csv_data_updated = False
-
-if modified_csv:
-    st.subheader('Edit CSV')
     # Display editable DataFrame below the checkbox
-    with st.expander("View/Modify CSV"):
+               with st.expander("View/Modify CSV"):
         # Use st.aggrid to display and edit the CSV
-        df_edited = st.aggrid(csv_data, editable=True)
+                 df_edited = st.aggrid(csv_data, editable=True)
 
         # Automatically save changes to CSV when data is edited
         if st.session_state.csv_data_updated:
