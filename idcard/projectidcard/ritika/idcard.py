@@ -205,7 +205,6 @@ def main():
             if modified_csv:
                 #st.subheader('Edit CSV')
                 st.write('Edit CSV')
-                df = csv_data.copy()
                 edited_data=st.data_editor(df)
                 df_edited = st.dataframe(df)
                 st.write(df)
