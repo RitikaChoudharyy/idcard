@@ -199,9 +199,19 @@ def main():
         st.sidebar.subheader('CSV Data Preview')
         st.sidebar.write(csv_data)
 
-        # No modification checkbox for CSV
-        st.sidebar.subheader('CSV Data (Read-only)')
-        st.sidebar.write(csv_data)
+        modified_csv = st.sidebar.checkbox('Modify CSV')
+
+        if modified_csv:
+            st.subheader('Edit CSV')
+            st.write(csv_data)
+
+            st.sidebar.write('Update CSV file:')
+            updated_csv = st.text_area('', csv_data.to_csv(), height=200)
+
+            if st.sidebar.button('Save Changes'):
+                with open(csv_file.name, 'w') as f:
+                    f.write(updated_csv)
+                st.sidebar.success(f'CSV file "{csv_file.name}" updated successfully.')
 
     st.subheader('Generate ID Cards')
     generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
