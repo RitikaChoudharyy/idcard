@@ -124,7 +124,6 @@ def get_head_by_division(division_name):
         "Semiconductor Process Technology Group": "Dr. Kuldip Singh",
         "Industrial R & D": "Mr. Ashok Chauhan",
         "High Power Microwave Systems Group": "Dr. Anirban Bera",
-    }
 
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
@@ -193,22 +192,27 @@ def main():
     csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
 
     if csv_file is not None:
-        csv_data = pd.read_csv(csv_file)
-        st.sidebar.success('CSV file successfully uploaded/updated.')
+        try:
+            csv_data = pd.read_csv(csv_file)
+            st.sidebar.success('CSV file successfully uploaded/updated.')
 
-        st.sidebar.subheader('CSV Data Preview')
-        st.sidebar.write(csv_data)
+            st.sidebar.subheader('CSV Data Preview')
+            st.sidebar.write(csv_data)
 
-        modified_csv = st.sidebar.checkbox('Modify CSV')
+            modified_csv = st.sidebar.checkbox('Modify CSV')
 
-        if modified_csv:
-            st.subheader('Edit CSV')
-            df = pd.read_csv(csv_file)
-            df_edited = st.data_editor(df)
+            if modified_csv:
+                st.subheader('Edit CSV')
+                df = pd.read_csv(csv_file)
+                df_edited = st.dataframe(df)
 
-            if st.button('Save Changes'):
-                df_edited.to_csv(csv_file.name, index=False)
-                st.success(f'CSV file "{csv_file.name}" updated successfully.')
+                if st.button('Save Changes'):
+                    df_edited.to_csv(csv_file.name, index=False)
+                    st.success(f'CSV file "{csv_file.name}" updated successfully.')
+
+        except pd.errors.EmptyDataError:
+            st.error('The uploaded CSV file is empty or malformed.')
+            csv_data = None
 
     st.subheader('Generate ID Cards')
     generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
@@ -219,15 +223,61 @@ def main():
             if not id_input.isdigit():
                 st.warning('Invalid input. Please enter a valid numeric ID.')
             else:
-                selected_data = csv_data[csv_data['ID'] == int(id_input)]
-                if selected_data.empty:
-                    st.warning(f"No data found for ID: {id_input}")
+                if csv_data is None:
+                    st.warning('Please upload a valid CSV file.')
+                else:
+                    selected_data = csv_data[csv_data['ID'] == int(id_input)]
+                    if selected_data.empty:
+                        st.warning(f"No data found for ID: {id_input}")
+                    else:
+                        generated_images = []
+                        for index, row in selected_data.iterrows():
+                            card = generate_card(row, template_path, image_folder, qr_folder)
+                            if card is not None:
+                                generated_images.append(card)
+                        
+                        if generated_images:
+                            st.success('ID card(s) generated successfully!')
+                            pdf_download_button = st.button('Download PDF')
+
+                            if pdf_download_button:
+                                try:
+                                    pdf_path = create_pdf(generated_images, output_pdf_path)
+                                    st.success(f'PDF successfully generated: [{pdf_path}]')
+                                    display_pdf(pdf_path)
+                                except Exception as e:
+                                    st.error(f'Error generating PDF: {str(e)}')
+
+                            for image in generated_images:
+                                st.image(image, use_column_width=True)
+                        else:
+                            st.warning('No ID card(s) generated.')
+
+    elif generate_mode == 'Comma-separated IDs':
+        ids_input = st.text_area('Enter comma-separated IDs:', value='')
+        if st.button('Generate ID Cards'):
+            ids_list = [id.strip() for id in ids_input.split(',') if id.strip().isdigit()]
+            if not ids_list:
+                st.warning('Invalid input. Please enter valid comma-separated IDs.')
+            else:
+                if csv_data is None:
+                    st.warning('Please upload a valid CSV file.')
                 else:
                     generated_images = []
-                    for index, row in selected_data.iterrows():
-                        card = generate_card(row, template_path, image_folder, qr_folder)
-                        if card is not None:
-                            generated_images.append(card)
+                    for id_input in ids_list:
+                        try:
+                            selected_data = csv_data[csv_data['ID'] == int(id_input)]
+                        except ValueError:
+                            st.warning(f"Skipping invalid ID: {id_input}. Please enter valid integer IDs.")
+                            continue
+                        
+                        if selected_data.empty:
+                            st.warning(f"No data found for ID: {id_input}")
+                        else:
+                            for index, row in selected_data.iterrows():
+                                card = generate_card(row, template_path, image_folder, qr_folder)
+                                if card is not None:
+                                    generated_images.append(card)
                     
                     if generated_images:
                         st.success('ID card(s) generated successfully!')
@@ -246,28 +296,16 @@ def main():
                     else:
                         st.warning('No ID card(s) generated.')
 
-    elif generate_mode == 'Comma-separated IDs':
-        ids_input = st.text_area('Enter comma-separated IDs:', value='')
-        if st.button('Generate ID Cards'):
-            ids_list = [id.strip() for id in ids_input.split(',') if id.strip().isdigit()]
-            if not ids_list:
-                st.warning('Invalid input. Please enter valid comma-separated IDs.')
+    elif generate_mode == 'All Students':
+        if st.button('Generate ID Cards for All Students'):
+            if csv_data is None:
+                st.warning('Please upload a valid CSV file.')
             else:
                 generated_images = []
-                for id_input in ids_list:
-                    try:
-                        selected_data = csv_data[csv_data['ID'] == int(id_input)]
-                    except ValueError:
-                        st.warning(f"Skipping invalid ID: {id_input}. Please enter valid integer IDs.")
-                        continue
-                    
-                    if selected_data.empty:
-                        st.warning(f"No data found for ID: {id_input}")
-                    else:
-                        for index, row in selected_data.iterrows():
-                            card = generate_card(row, template_path, image_folder, qr_folder)
-                            if card is not None:
-                                generated_images.append(card)
+                for index, row in csv_data.iterrows():
+                    card = generate_card(row, template_path, image_folder, qr_folder)
+                    if card is not None:
+                        generated_images.append(card)
                 
                 if generated_images:
                     st.success('ID card(s) generated successfully!')
@@ -285,31 +323,6 @@ def main():
                         st.image(image, use_column_width=True)
                 else:
                     st.warning('No ID card(s) generated.')
-
-    elif generate_mode == 'All Students':
-        if st.button('Generate ID Cards for All Students'):
-            generated_images = []
-            for index, row in csv_data.iterrows():
-                card = generate_card(row, template_path, image_folder, qr_folder)
-                if card is not None:
-                    generated_images.append(card)
-            
-            if generated_images:
-                st.success('ID card(s) generated successfully!')
-                pdf_download_button = st.button('Download PDF')
-
-                if pdf_download_button:
-                    try:
-                        pdf_path = create_pdf(generated_images, output_pdf_path)
-                        st.success(f'PDF successfully generated: [{pdf_path}]')
-                        display_pdf(pdf_path)
-                    except Exception as e:
-                        st.error(f'Error generating PDF: {str(e)}')
-
-                for image in generated_images:
-                    st.image(image, use_column_width=True)
-            else:
-                st.warning('No ID card(s) generated.')
 
 if __name__ == "__main__":
     main()
