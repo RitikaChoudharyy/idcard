@@ -59,7 +59,7 @@ def generate_card(data, template_path, image_folder, qr_folder):
         draw = ImageDraw.Draw(template)
         
         try:
-            font_path = "C:\\WINDOWS\\FONTS\\ARIAL.TTF"
+            font_path = "C:\\WINDOWS\\FONTS\\ARIAL.TTF"  # Adjust the font path as per your system
             name_font = ImageFont.truetype(font_path, size=18)
         except IOError:
             name_font = ImageFont.load_default()
@@ -215,5 +215,30 @@ def main():
                 href = f'<a href="data:file/csv;base64,{b64}" download="{csv_file.name}">Click here to download {csv_file.name}</a>'
                 st.sidebar.markdown(href, unsafe_allow_html=True)
 
+    st.sidebar.header('Generate ID Cards')
+
+    if st.sidebar.button('Generate ID Cards'):
+        st.sidebar.info('Generating ID Cards...')
+
+        generated_images = []
+        for index, row in csv_data.iterrows():
+            card = generate_card(row, template_path, image_folder, qr_folder)
+            if card:
+                generated_images.append(card)
+
+        if generated_images:
+            st.success(f"Successfully generated {len(generated_images)} ID cards.")
+
+            st.info("Creating PDF... Please wait.")
+            output_pdf = create_pdf(generated_images, output_pdf_path)
+            st.info("PDF created successfully!")
+
+            st.info("Displaying PDF...")
+            display_pdf(output_pdf)
+
+        else:
+            st.warning("No ID cards were generated. Please check your CSV data and try again.")
+
 if __name__ == '__main__':
     main()
+
