@@ -1,39 +1,24 @@
-#this is the code of removing background 
 import streamlit as st
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageFont
 import pandas as pd
 import os
 import textwrap
 from fpdf import FPDF
-import fitz
-from io import BytesIO
+import fitz  # PyMuPDF
 import base64
-import cv2
-import numpy as np
-from rembg import remove
-from PIL import Image
+
+# Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
-    input_image = Image.open(image_path)
-    output_image = remove(input_image)
-
-    # Convert the background to white
-    white_bg = Image.new("RGBA", output_image.size, "WHITE")
-    final_image = Image.alpha_composite(white_bg, output_image)
-
-    # Convert to RGB mode
-    final_image = final_image.convert("RGB")
-
-    return final_image
-# Title with image
-image = Image.open("logo.jpg.png")
-st.image(image, use_column_width=True)
-
-
-def generate_card(data, template_path, image_folder, qr_folder):
-    if not os.path.exists(template_path):
-        st.error("Template image not found at the specified location.")
+    try:
+        input_image = Image.open(image_path)
+        final_image = input_image.convert("RGB")
+        return final_image
+    except Exception as e:
+        st.error(f"Error opening image at {image_path}: {str(e)}")
         return None
-    
+
+# Function to generate ID card
+def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
         st.warning(f"Skipping record with missing ID: {data}")
@@ -51,49 +36,58 @@ def generate_card(data, template_path, image_folder, qr_folder):
 
     # Preprocess the image
     preprocessed_pic = preprocess_image(pic_path)
-    preprocessed_pic = preprocessed_pic.resize((144, 145))
+    if preprocessed_pic is None:
+        return None
+    
+    try:
+        preprocessed_pic = preprocessed_pic.resize((144, 145))
+    except Exception as e:
+        st.error(f"Error resizing image for ID: {pic_id}. Error: {str(e)}")
+        return None
 
-    template = Image.open(template_path)
-    qr = Image.open(qr_path).resize((161, 159))
+    try:
+        template = Image.open(template_path)
+        qr = Image.open(qr_path).resize((161, 159))
+        
+        template.paste(preprocessed_pic, (27, 113, 171, 258))
+        template.paste(qr, (497, 109, 658, 268))
+        
+        draw = ImageDraw.Draw(template)
+        
+        try:
+            font_path = "C:\\WINDOWS\\FONTS\\ARIAL.TTF"
+            name_font = ImageFont.truetype(font_path, size=18)
+        except IOError:
+            name_font = ImageFont.load_default()
+        
+        wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
+        draw.text((311, 121), wrapped_div, font=name_font, fill='black')
+        draw.text((200, 356), data['University '], font=name_font, fill='black')
+        
+        division_input = data['Division/Section']
+        head_name = get_head_by_division(division_input)
+        
+        wrapped_supri = textwrap.fill(str(head_name), width=20).title()
+        draw.text((311, 170), wrapped_supri, font=name_font, fill='black')
+        
+        draw.text((305, 219), data['Internship Start Date'], font=name_font, fill='black')
+        draw.text((303, 266), data['Internship End Date'], font=name_font, fill='black')
+        draw.text((300, 312), str(data['Mobile']), font=name_font, fill='black')
+        draw.text((621, 283), str(data['ID']), font=name_font, fill='black')
+        
+        wrapped_name = center_align_text_wrapper(data['Name'], width=22)
+        
+        name_bbox = name_font.getbbox(wrapped_name)
+        name_width = name_bbox[2] - name_bbox[0]
+        
+        center_x = ((198 - name_width) / 2)
+        draw.text((center_x, 260), wrapped_name, font=name_font, fill='black')
+        
+        return template
     
-    template.paste(preprocessed_pic, (27, 113, 171, 258))
-    template.paste(qr, (497, 109, 658, 268))
-    
-    draw = ImageDraw.Draw(template)
-    font = ImageFont.truetype("arial.ttf", size=18)  # Adjust the font path as needed
-    
-    wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
-    draw.text((311, 121), wrapped_div, font=font, fill='black')
-    draw.text((200, 356), data['University '], font=font, fill='black')
-    
-    division_input = data['Division/Section']
-    head_name = get_head_by_division(division_input)
-    
-    wrapped_supri = textwrap.fill(str(head_name), width=20).title()
-    draw.text((311, 170), wrapped_supri.title(), font=font, fill='black')
-    
-    draw.text((305, 219), data['Internship Start Date'], font=font, fill='black')
-    draw.text((303, 266), data['Internship End Date'], font=font, fill='black')
-    draw.text((300, 312), str(data['Mobile']), font=font, fill='black')
-    draw.text((621, 283), str(data['ID']), font=font, fill='black')
-
-    # Adjusted for name wrapping
-    name_font = ImageFont.truetype("arial.ttf", size=18)  # Adjust the font path as needed
-    wrapped_name = center_align_text_wrapper(data['Name'], width=22)
-    
-    # Get the text size using ImageFont.textbbox()
-    name_bbox = name_font.getbbox(wrapped_name)
-    name_width = name_bbox[2] - name_bbox[0]
-    
-    # Calculate the x-coordinate to center the text name
-    center_x = ((198 - name_width) / 2 )
-    draw.text((center_x, 260), wrapped_name.title(), font=name_font, fill='black')
-    
-    return template
-
-
-
-    
+    except Exception as e:
+        st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
+        return None
 
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
@@ -105,11 +99,10 @@ def center_align_text_wrapper(text, width=15):
         if len(current_line) + len(word) + 1 <= width:
             current_line += word + " "
         else:
-            lines.append(current_line[:-1])  # Exclude the trailing space
+            lines.append(current_line[:-1])
             current_line = word + " "
 
-    lines.append(current_line[:-1])  # Include the last line
-
+    lines.append(current_line[:-1])
     centered_lines = [line.center(width) for line in lines]
     centered_text = "\n".join(centered_lines)
 
@@ -118,30 +111,25 @@ def center_align_text_wrapper(text, width=15):
 # Function to get the head by division
 def get_head_by_division(division_name):
     divisions = {
-        "Advanced Information Technologies Group": ["Dr. Sanjay Singh"],
-        "Societal Electronics Group": ["Dr. Udit Narayan Pal"],
-        "Industrial Automation": ["Dr.S.S.Sadistap"],
-        "Vacuum Electronic Devices Group": ["Dr. Sanjay Kr. Ghosh"],
-        "High-Frequency Devices & System Group": ["Dr. Ayan Bandhopadhyay"],
-        "Semiconductor Sensors & Microsystems Group": ["Dr. Suchandan Pal"],
-        "Semiconductor Process Technology Group": ["Dr. Kuldip Singh"],
-        "Industrial R & D": ["Mr.Ashok Chauhan"],
-        "High Power Microwave Systems Group": ["Dr. Anirban Bera"],
+        "Advanced Information Technologies Group": "Dr. Sanjay Singh",
+        "Societal Electronics Group": "Dr. Udit Narayan Pal",
+        "Industrial Automation": "Dr. S.S. Sadistap",
+        "Vacuum Electronic Devices Group": "Dr. Sanjay Kr. Ghosh",
+        "High-Frequency Devices & System Group": "Dr. Ayan Bandhopadhyay",
+        "Semiconductor Sensors & Microsystems Group": "Dr. Suchandan Pal",
+        "Semiconductor Process Technology Group": "Dr. Kuldip Singh",
+        "Industrial R & D": "Mr. Ashok Chauhan",
+        "High Power Microwave Systems Group": "Dr. Anirban Bera",
     }
 
     division_name = division_name.strip().title()
-
-    if division_name in divisions:
-        head_names = divisions[division_name]
-        return head_names[0]  # Assuming only one head for each division
-    else:
-        return "Division not found or head information not available."
+    return divisions.get(division_name, "Division not found or head information not available.")
 
 # Function to create a PDF from the generated ID cards
 def create_pdf(images, pdf_path):
     pdf = FPDF()
-    cards_per_page = 8  # 2x4 grid
-    num_pages = -(-len(images) // cards_per_page)  # Ceiling division to get the number of pages needed
+    cards_per_page = 8
+    num_pages = -(-len(images) // cards_per_page)
     
     for page_num in range(num_pages):
         pdf.add_page()
@@ -151,12 +139,10 @@ def create_pdf(images, pdf_path):
             if card_index < len(images):
                 card = images[card_index]
                 temp_image_path = f"temp_image_{card_index}.jpg"
-                # Ensure the image is in RGB mode before saving as JPEG
                 if card.mode == 'RGBA':
                     card = card.convert('RGB')
                 card.save(temp_image_path)
                 
-                # Calculate x, y position for each card in the grid
                 col = i % 4
                 row = i // 4
                 x_offset = col * (pdf.w / 4 - 10)
@@ -174,89 +160,145 @@ def display_pdf(pdf_path):
     pdf_bytes = doc.convert_to_pdf()
     b64_pdf = base64.b64encode(pdf_bytes).decode()
 
-    # Display PDF in an iframe
     pdf_display = f'<iframe src="data:application/pdf;base64,{b64_pdf}" width="700" height="1000" type="application/pdf"></iframe>'
     st.markdown(pdf_display, unsafe_allow_html=True)
 
-    # Download button
     st.download_button(
         label="Download PDF",
         data=pdf_bytes,
         file_name="generated_id_cards.pdf",
         mime="application/pdf"
     )
-    print_js = """
-    <script>
-        // Your JavaScript code here
-        console.log("Hello from JavaScript!");
-    </script>
-    """
-    st.markdown(print_js, unsafe_allow_html=True)
 
-    # Display ID card images directly
     for page in doc:
         for img in page.get_images(full=True):
             xref = img[0]
             base_image = doc.extract_image(xref)
-            image_bytes = base64.b64encode(base_image["image"])
             st.image(base_image["image"], caption="Generated ID Card")
 
-# Main Streamlit app
 def main():
     st.title("Automatic ID Card Generation")
     
     template_path = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST.png"
-    image_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\downloaded_images"
+    image_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika"
     qr_folder = "C:\\Users\\Shree\\Desktop\\idcard\\projectidcard\\ritika\\ST_output_qr_codes"
     output_pdf_path = "C:\\Users\\Shree\\Desktop\\generated_id_cards.pdf"
 
-    # File uploader for CSV files
-    uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
+    st.sidebar.header('Upload CSV')
+    csv_file = st.sidebar.file_uploader("Upload your CSV file", type=['csv'])
 
-    if uploaded_file is not None:
-        # Read the uploaded CSV file into a DataFrame
-        df = pd.read_csv(uploaded_file, converters={'ID': str})
+    if csv_file is not None:
+        try:
+            data = pd.read_csv(csv_file)
+        except Exception as e:
+            st.sidebar.error(f"Error reading CSV file: {str(e)}")
+            return
 
-        # Check for duplicates and remove them
-        df = df.drop_duplicates()
+        st.sidebar.subheader('Uploaded Data')
+        st.sidebar.write(data)
 
-        # Display the uploaded data
-        st.write("Uploaded CSV file:")
-        edited_data = st.data_editor(df)
-        st.write(df)
+        st.subheader('Generate ID Cards')
+        generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
 
-        # Get student ID for individual ID card generation
-        student_id = st.text_input("Enter Student ID for Individual ID Card Generation")
-
-        # Button to generate ID card for a specific student
-        if st.button("Generate ID Card for Individual Student"):
-            if student_id:
-                student_data = df[df['ID'] == student_id]
-                if not student_data.empty:
-                    card = generate_card(student_data.iloc[0], template_path, image_folder, qr_folder)
-                    if card:
-                        pdf_path = create_pdf([card], output_pdf_path)
-                        st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
-                        display_pdf(pdf_path)
+        if generate_mode == 'Individual ID':
+            id_input = st.text_input('Enter ID:', value='')
+            if st.button('Generate ID Card'):
+                try:
+                    selected_data = data[data['ID'] == int(id_input)]
+                except ValueError:
+                    st.error(f"Invalid input for ID: {id_input}. Please enter a valid integer ID.")
+                    return
+                
+                if selected_data.empty:
+                    st.warning(f"No data found for ID: {id_input}")
                 else:
-                    st.error(f"No student found with ID: {student_id}")
-            else:
-                st.error("Please enter a Student ID")
+                    generated_images = []
+                    for index, row in selected_data.iterrows():
+                        card = generate_card(row, template_path, image_folder, qr_folder)
+                        if card is not None:
+                            generated_images.append(card)
+                    
+                    if generated_images:
+                        st.success('ID card(s) generated successfully!')
+                        pdf_download_button = st.button('Download PDF')
 
-        # Button to generate ID cards for all students
-        if st.button("Generate ID Cards for All Students"):
-            images = []
-            records = edited_data.to_dict(orient='records')
-            for record in records:
-                card = generate_card(record, template_path, image_folder, qr_folder)
-                if card:
-                    images.append(card)
+                        if pdf_download_button:
+                            try:
+                                pdf_path = create_pdf(generated_images, output_pdf_path)
+                                st.success(f'PDF successfully generated: [{pdf_path}]')
+                                display_pdf(pdf_path)
+                            except Exception as e:
+                                st.error(f'Error generating PDF: {str(e)}')
 
-            # Create and display the PDF
-            pdf_path = create_pdf(images, output_pdf_path)
-            st.success(f"PDF generated successfully! Check the '{output_pdf_path}' file.")
-            display_pdf(pdf_path)
+                        for image in generated_images:
+                            st.image(image, use_column_width=True)
+                    else:
+                        st.warning('No ID card(s) generated.')
+
+        elif generate_mode == 'Comma-separated IDs':
+            ids_input = st.text_area('Enter comma-separated IDs:', value='')
+            if st.button('Generate ID Cards'):
+                ids_list = [id.strip() for id in ids_input.split(',') if id.strip().isdigit()]
+                if not ids_list:
+                    st.warning('Invalid input. Please enter valid comma-separated IDs.')
+                else:
+                    generated_images = []
+                    for id_input in ids_list:
+                        try:
+                            selected_data = data[data['ID'] == int(id_input)]
+                        except ValueError:
+                            st.warning(f"Skipping invalid ID: {id_input}. Please enter valid integer IDs.")
+                            continue
+                        
+                        if selected_data.empty:
+                            st.warning(f"No data found for ID: {id_input}")
+                        else:
+                            for index, row in selected_data.iterrows():
+                                card = generate_card(row, template_path, image_folder, qr_folder)
+                                if card is not None:
+                                    generated_images.append(card)
+                    
+                    if generated_images:
+                        st.success('ID card(s) generated successfully!')
+                        pdf_download_button = st.button('Download PDF')
+
+                        if pdf_download_button:
+                            try:
+                                pdf_path = create_pdf(generated_images, output_pdf_path)
+                                st.success(f'PDF successfully generated: [{pdf_path}]')
+                                display_pdf(pdf_path)
+                            except Exception as e:
+                                st.error(f'Error generating PDF: {str(e)}')
+
+                        for image in generated_images:
+                            st.image(image, use_column_width=True)
+                    else:
+                        st.warning('No ID card(s) generated.')
+
+        elif generate_mode == 'All Students':
+            if st.button('Generate ID Cards for All Students'):
+                generated_images = []
+                for index, row in data.iterrows():
+                    card = generate_card(row, template_path, image_folder, qr_folder)
+                    if card is not None:
+                        generated_images.append(card)
+                
+                if generated_images:
+                    st.success('ID card(s) generated successfully!')
+                    pdf_download_button = st.button('Download PDF')
+
+                    if pdf_download_button:
+                        try:
+                            pdf_path = create_pdf(generated_images, output_pdf_path)
+                            st.success(f'PDF successfully generated: [{pdf_path}]')
+                            display_pdf(pdf_path)
+                        except Exception as e:
+                            st.error(f'Error generating PDF: {str(e)}')
+
+                    for image in generated_images:
+                        st.image(image, use_column_width=True)
+                else:
+                    st.warning('No ID card(s) generated.')
 
 if __name__ == "__main__":
     main()
-
