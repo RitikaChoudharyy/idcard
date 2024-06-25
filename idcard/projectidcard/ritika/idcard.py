@@ -1,3 +1,4 @@
+import streamlit as st
 import pandas as pd
 import os
 from PIL import Image, ImageDraw, ImageFont
@@ -314,6 +315,7 @@ def main():
             st.error('CSV file is empty or not loaded correctly. Please upload a valid CSV file.')
         except Exception as e:
             st.error(f'An unexpected error occurred: {str(e)}')
+
 if __name__ == "__main__":
     main()
 
