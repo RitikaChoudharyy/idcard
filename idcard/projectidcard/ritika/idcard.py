@@ -195,27 +195,21 @@ def main():
     if csv_file is not None:
         try:
             csv_data = pd.read_csv(csv_file)
-            st.subheader('Original CSV Data')
-            st.write(csv_data)
+            st.sidebar.success('CSV file successfully uploaded/updated.')
 
-            modified_csv = st.checkbox('Modify CSV')
+            st.sidebar.subheader('CSV Data Preview')
+            st.sidebar.write(csv_data)
+
+            modified_csv = st.sidebar.checkbox('Modify CSV')
 
             if modified_csv:
                 st.subheader('Edit CSV')
-                df_edited = st.experimental_data_editor(csv_data)
-                st.write(df_edited)
+                df = csv_data.copy()
+                df_edited = st.dataframe(df)
 
                 if st.button('Save Changes'):
                     df_edited.to_csv(csv_file.name, index=False)
                     st.success(f'CSV file "{csv_file.name}" updated successfully.')
-
-                # Clear the edited DataFrame after saving
-                df_edited = None
-
-            # Hide original CSV data when editing
-            if not modified_csv or df_edited is not None:
-                st.subheader('Original CSV Data (Hidden)')
-                st.write('Use the checkbox above to modify CSV data.')
 
             st.subheader('Generate ID Cards')
             generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
@@ -295,11 +289,6 @@ def main():
 
             elif generate_mode == 'All Students':
                 if st.button('Generate ID Cards for All Students'):
-                    generated_images
-
-
-            elif generate_mode == 'All Students':
-                if st.button('Generate ID Cards for All Students'):
                     generated_images = []
                     for index, row in csv_data.iterrows():
                         card = generate_card(row, template_path, image_folder, qr_folder)
@@ -327,6 +316,5 @@ def main():
         except Exception as e:
             st.error(f'An unexpected error occurred: {str(e)}')
 
-if __name__ == "__main__":
+if _name_ == "_main_":
     main()
-
