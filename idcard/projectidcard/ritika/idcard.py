@@ -206,12 +206,10 @@ def main():
                 st.subheader('Edit CSV')
                 df = csv_data.copy()
                 df_edited = st.data_editor(df)
-                st.write(df)
-            
-        #edited_data = st.data_editor(df)
+                st.write(df_edited)
 
-            
-            if st.button('Save Changes'):
+                
+                if st.button('Save Changes'):
                     df_edited.to_csv(csv_file.name, index=False)
                     st.success(f'CSV file "{csv_file.name}" updated successfully.')
 
@@ -290,6 +288,11 @@ def main():
                                 st.image(image, use_column_width=True)
                         else:
                             st.warning('No ID card(s) generated.')
+
+            elif generate_mode == 'All Students':
+                if st.button('Generate ID Cards for All Students'):
+                    generated_images
+
 
             elif generate_mode == 'All Students':
                 if st.button('Generate ID Cards for All Students'):
