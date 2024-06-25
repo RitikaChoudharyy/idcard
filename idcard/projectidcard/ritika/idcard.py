@@ -217,7 +217,7 @@ def main():
 
     st.subheader('Generate ID Cards')
     generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
-        if generate_mode == 'Individual ID':
+    if generate_mode == 'Individual ID':
         id_input = st.text_input('Enter the ID:')
         if st.button('Generate ID Card'):
             if not id_input.isdigit():
