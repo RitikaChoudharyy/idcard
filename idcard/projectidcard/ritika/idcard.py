@@ -204,10 +204,11 @@ def main():
 
             if modified_csv:
                 st.subheader('Edit CSV')
-                df = csv_data.copy()
-                df_edited = st.dataframe(df)
+                # Display editable DataFrame
+                df_edited = st.dataframe(csv_data)
 
                 if st.button('Save Changes'):
+                    # Save changes to CSV file
                     df_edited.to_csv(csv_file.name, index=False)
                     st.success(f'CSV file "{csv_file.name}" updated successfully.')
 
@@ -221,7 +222,7 @@ def main():
                         st.warning('Invalid input. Please enter a valid numeric ID.')
                     else:
                         selected_data = csv_data[csv_data['ID'] == int(id_input)]
-                        if selected_data.empty:
+                    if selected_data.empty:
                             st.warning(f"No data found for ID: {id_input}")
                         else:
                             generated_images = []
@@ -318,3 +319,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+                        
