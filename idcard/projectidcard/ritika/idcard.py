@@ -226,7 +226,7 @@ def main():
                     generated_images = []
                     for index, row in selected_data.iterrows():
                                                 card = generate_card(row, template_path, image_folder, qr_folder)
-                        if card is not None:
+                    if card is not None:
                             generated_images.append(card)
                     
                     if generated_images:
