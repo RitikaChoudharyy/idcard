@@ -188,6 +188,8 @@ def main():
     output_pdf_path = "generated_id_cards.pdf"
 
     st.sidebar.header('Manage CSV')
+    
+    # File uploader in col1
     csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
 
     if csv_file is not None:
@@ -195,14 +197,12 @@ def main():
             csv_data = pd.read_csv(csv_file)
             st.sidebar.success('CSV file successfully uploaded/updated.')
 
-            st.sidebar.subheader('CSV Data Preview')
-            st.sidebar.write(csv_data)
-
+            # Checkbox for modifying CSV in col2
             modified_csv = st.sidebar.checkbox('Modify CSV')
 
             if modified_csv:
                 st.subheader('Edit CSV')
-                # Display editable DataFrame
+                # Display editable DataFrame below the checkbox
                 df_edited = st.dataframe(csv_data)
 
                 if st.button('Save Changes'):
