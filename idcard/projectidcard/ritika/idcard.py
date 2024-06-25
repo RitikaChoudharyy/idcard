@@ -203,14 +203,16 @@ def main():
             modified_csv = st.sidebar.checkbox('Modify CSV')
 
             if modified_csv:
-                st.write('Edit CSV')
-                df = df.drop_duplicates()
-
-                edited_data=st.data_editor(df)
-                df_edited = st.dataframe(df)
+                st.subheader('Edit CSV')
+                df = csv_data.copy()
+                #df_edited = st.dataframe(df)
+                df_edited = st.data_editor(df)
                 st.write(df)
+            
+        #edited_data = st.data_editor(df)
 
-                if st.button('Save Changes'):
+            
+            if st.button('Save Changes'):
                     df_edited.to_csv(csv_file.name, index=False)
                     st.success(f'CSV file "{csv_file.name}" updated successfully.')
 
