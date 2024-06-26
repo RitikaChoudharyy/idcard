@@ -30,18 +30,12 @@ def generate_card(data, template_path, image_folder, qr_folder):
         st.warning(f"Skipping record with missing ID: {data}")
         return None
     
-    pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
-    if not os.path.exists(pic_path):
-        pic_path = os.path.join(image_folder, f"{pic_id}.png")
-    st.write(f"Looking for image at path: {pic_path}")
-    
+    pic_path = os.path.join(image_folder, f"{pic_id}.jpg")  # Look for JPEG format
     if not os.path.exists(pic_path):
         st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
         return None
     
-    qr_path = os.path.join(qr_folder, f"{pic_id}.png")
-    st.write(f"Looking for QR code at path: {qr_path}")
-    
+    qr_path = os.path.join(qr_folder, f"{pic_id}.png")  # Look for PNG format
     if not os.path.exists(qr_path):
         st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
         return None
