@@ -189,7 +189,12 @@ def display_pdf(pdf_path):
         st.error(f"Error displaying PDF: {str(e)}")
 
 def main():
-    st.set_page_config(page_title="Automatic ID Card Generation", layout="wide", initial_sidebar_state="expanded", max_upload_size=800 * 1024 * 1024)
+    st.set_page_config(
+        page_title="Automatic ID Card Generation",
+        layout="wide",
+        initial_sidebar_state="expanded",
+        max_upload_size=800000000  # 800 MB in bytes
+    )
     
     st.title("Automatic ID Card Generation")
 
@@ -213,7 +218,6 @@ def main():
             image_path = os.path.join(image_folder, f"uploaded_image_{i}.png")  # Adjust naming if necessary
             with open(image_path, "wb") as f:
                 f.write(image_file.getbuffer())
-
         st.sidebar.success("Images uploaded successfully.")
         st.success(f"Uploaded {len(image_files)} image(s) successfully to {image_folder}")
 
