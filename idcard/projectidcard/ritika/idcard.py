@@ -7,7 +7,6 @@ from fpdf import FPDF
 import fitz  # PyMuPDF
 import base64
 from st_aggrid import AgGrid
-from st_aggrid import AgGrid
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
@@ -97,10 +96,6 @@ def generate_card(data, template_path, image_folder, qr_folder):
     except Exception as e:
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
-    
-    except Exception as e:
-        st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
-        return None
 
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
@@ -180,7 +175,8 @@ def create_pdf(images, pdf_path):
 
     # Save the PDF
     c.save()
-    # Function to display the PDF in Streamlit
+
+# Function to display the PDF in Streamlit
 def display_pdf(pdf_path):
     with open(pdf_path, "rb") as f:
         base64_pdf = base64.b64encode(f.read()).decode('utf-8')
@@ -196,11 +192,15 @@ def main():
     image_folder = "idcard/projectidcard/ritika/downloaded_images"
     qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
     output_pdf_path = "generated_id_cards.pdf"
+    
+    # Initialize pdf_path to None
+    pdf_path = None
 
     # Sidebar for managing CSV
     st.sidebar.header('Manage CSV')
     
     # File uploader in sidebar
+   
     csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
 
     if csv_file is not None:
@@ -277,6 +277,14 @@ def main():
                 for i, card in enumerate(generated_cards):
                     st.image(card, caption=f"Generated ID Card for ID: {id_list[i]}")
 
+                # Create PDF of generated ID cards
+                pdf_path = "generated_id_cards.pdf"
+                create_pdf(generated_cards, pdf_path)
+                st.success(f"PDF created successfully: [Download PDF]({pdf_path})")
+
+                # Display PDF in Streamlit
+                display_pdf(pdf_path)
+
     elif generate_mode == 'All Students':
         st.info("Generating ID cards for all students...")
         generated_cards = []
@@ -296,13 +304,8 @@ def main():
             create_pdf(generated_cards, pdf_path)
             st.success(f"PDF created successfully: [Download PDF]({pdf_path})")
 
-    # Download button for the generated PDF in the sidebar
-    st.sidebar.markdown('### Download Generated PDF')
-    if st.sidebar.button('Download PDF'):
-        with open(pdf_path, "rb") as f:
-            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
-            href = f'<a href="data:application/pdf;base64,{base64_pdf}" download="generated_id_cards.pdf">Click here to download</a>'
-            st.sidebar.markdown(href, unsafe_allow_html=True)
+            # Display PDF in Streamlit
+            display_pdf(pdf_path)
 
 if __name__ == "__main__":
     main()
