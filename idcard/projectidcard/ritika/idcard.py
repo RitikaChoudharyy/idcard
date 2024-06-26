@@ -23,7 +23,6 @@ def preprocess_image(image_path):
         st.error(f"Error opening image at image_path: {str(e)}")
         return None
 
-# Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
@@ -79,7 +78,9 @@ def generate_card(data, template_path, image_folder, qr_folder):
         wrapped_supri = textwrap.fill(str(head_name), width=20).title()
         draw.text((311, 170), wrapped_supri, font=name_font, fill='black')
         
-        draw.text((200, 356), data['University'], font=name_font, fill='black')
+        university = data.get('University', 'Not Available')
+        draw.text((200, 356), university, font=name_font, fill='black')
+        
         draw.text((305, 219), data['Internship Start Date'], font=name_font, fill='black')
         draw.text((303, 266), data['Internship End Date'], font=name_font, fill='black')
         draw.text((300, 312), str(data['Mobile']), font=name_font, fill='black')
@@ -92,6 +93,10 @@ def generate_card(data, template_path, image_folder, qr_folder):
         draw.text((center_x, 260), wrapped_name, font=name_font, fill='black')
         
         return template
+    
+    except Exception as e:
+        st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
+        return None
     
     except Exception as e:
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
