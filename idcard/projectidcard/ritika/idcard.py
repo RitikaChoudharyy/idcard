@@ -189,7 +189,8 @@ def display_pdf(pdf_path):
         st.error(f"Error displaying PDF: {str(e)}")
 
 def main():
-    st.set_page_config(
+    try:
+        st.set_page_config(
         page_title="Automatic ID Card Generation",
         layout="wide",
         initial_sidebar_state="expanded",
