@@ -364,9 +364,5 @@ def main():
         st.success(f"PDF created successfully: [Download PDF]({output_pdf_path})")
     else:
         st.error("Failed to create PDF.")
-
-            # Display PDF in Streamlit
-            display_pdf(output_pdf_path)
-
 if __name__ == "__main__":
     main()
