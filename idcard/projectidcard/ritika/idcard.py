@@ -191,17 +191,16 @@ def display_pdf(pdf_path):
 def main():
     try:
         st.set_page_config(
-        page_title="Automatic ID Card Generation",
-        layout="wide",
-        initial_sidebar_state="expanded",
-        max_upload_size=800000000  # 800 MB in bytes
-    )
-    
-     st.title("Automatic ID Card Generation")
-
-    template_path = "idcard/projectidcard/ritika/ST.png"
-    qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
-    output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"
+            page_title="Automatic ID Card Generation",
+            layout="wide",
+            initial_sidebar_state="expanded",
+            max_upload_size=800 * 1024 * 1024  # 800 MB in bytes
+        )
+        
+        st.title("Automatic ID Card Generation")
+        template_path = "idcard/projectidcard/ritika/ST.png"
+        qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
+        output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"
 
     st.sidebar.header('Manage CSV')
 
