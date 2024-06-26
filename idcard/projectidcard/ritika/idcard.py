@@ -197,7 +197,7 @@ def main():
         max_upload_size=800000000  # 800 MB in bytes
     )
     
-    st.title("Automatic ID Card Generation")
+     st.title("Automatic ID Card Generation")
 
     template_path = "idcard/projectidcard/ritika/ST.png"
     qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
