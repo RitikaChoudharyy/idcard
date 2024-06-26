@@ -3,10 +3,15 @@ import pandas as pd
 import os
 from PIL import Image, ImageDraw, ImageFont
 import textwrap
+from fpdf import FPDF
 import base64
+from st_aggrid import AgGrid
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
+import logging
+
+logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
@@ -18,7 +23,6 @@ def preprocess_image(image_path):
         st.error(f"Error opening image at image_path: {str(e)}")
         return None
 
-# Function to generate ID card image
 def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
@@ -94,28 +98,6 @@ def generate_card(data, template_path, image_folder, qr_folder):
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
 
-# Function to get the head by division
-def get_head_by_division(division_name):
-    divisions = {
-        "Advanced Information Technologies Group": ["Dr. Sanjay Singh"],
-        "Societal Electronics Group": ["Dr. Udit Narayan Pal"],
-        "Industrial Automation": ["Dr.S.S.Sadistap"],
-        "Vacuum Electronic Devices Group": ["Dr. Sanjay Kr. Ghosh"],
-        "High-Frequency Devices & System Group": ["Dr. Ayan Bandhopadhyay"],
-        "Semiconductor Sensors & Microsystems Group": ["Dr. Suchandan Pal"],
-        "Semiconductor Process Technology Group": ["Dr. Kuldip Singh"],
-        "Industrial R & D": ["Mr.Ashok Chauhan"],
-        "High Power Microwave Systems Group": ["Dr. Anirban Bera"],
-    }
-
-    division_name = division_name.strip().title()
-
-    if division_name in divisions:
-        head_names = divisions[division_name]
-        return head_names[0]  # Assuming only one head for each division
-    else:
-        return "Division not found or head information not available."
-
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
     words = text.split()
@@ -135,60 +117,28 @@ def center_align_text_wrapper(text, width=15):
 
     return centered_text
 
-# Function to create PDF from a folder of images
-def create_pdf_from_folder(input_folder, output_pdf):
+# Function to get the head by division
+def get_head_by_division(division_name):
+    divisions = {
+        "Advanced Information Technologies Group": "Dr. Sanjay Singh",
+        "Societal Electronics Group": "Dr. Udit Narayan Pal",
+        "Industrial Automation": "Dr. S.S. Sadistap",
+        "Vacuum Electronic Devices Group": "Dr. Sanjay Kr. Ghosh",
+        "High-Frequency Devices & System Group": "Dr. Ayan Bandhopadhyay",
+        "Semiconductor Sensors & Microsystems Group": "Dr. Suchandan Pal",
+        "Semiconductor Process Technology Group": "Dr. Kuldip Singh",
+        "Industrial R & D": "Mr. Ashok Chauhan",
+        "High Power Microwave Systems Group": "Dr. Anirban Bera",
+    }
+
+    division_name = division_name.strip().title()
+    return divisions.get(division_name, "Division not found or head information not available.")
+
+# Modify the create_pdf function to directly save to the default download path
+def create_pdf(images):
     try:
-        c = canvas.Canvas(output_pdf, pagesize=letter)
+        pdf_path = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"  # Directly specify the path
 
-        # Define the dimensions and spacing for the grid
-        grid_width = 2
-        grid_height = 4
-        image_width = 3.575 * inch
-        image_height = 2.325 * inch
-        spacing_x = 1.5 * mm
-        spacing_y = 1.5 * mm
-
-        # Calculate total width and height of the grid
-        total_width = grid_width * (image_width + spacing_x)
-        total_height = grid_height * (image_height + spacing_y)
-
-        # Iterate through images in the folder
-        image_paths = [os.path.join(input_folder, file) for file in os.listdir(input_folder) if file.lower().endswith(('.jpg', '.jpeg', '.png'))]
-
-        # Track the current page
-        current_page = 0
-
-        for i, image_path in enumerate(image_paths):
-            col = i % grid_width
-            row = i // grid_width
-
-            # Check if the current page is filled and there are more images to be processed
-            if i > 0 and i % (grid_width * grid_height) == 0:
-                # Start a new page
-                current_page += 1
-                c.showPage()
-
-            # Calculate the starting position for each new page
-            start_x = (letter[0] - total_width) / 2
-            start_y = (letter[1] - total_height) / 2 - current_page * total_height
-
-            # Calculate the position for the current image on the current page
-            x = start_x + col * (image_width + spacing_x)
-            y = start_y + row * (image_height + spacing_y)
-
-            # Draw the image on the canvas
-            c.drawImage(image_path, x, y, width=image_width, height=image_height)
-
-        # Save the PDF
-        c.save()
-
-        return True
-
-    except Exception as e:
-        st.error(f"Error creating PDF: {str(e)}")
-        return False
-def create_pdf(images, pdf_path):
-    try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
 
         # Define the dimensions and spacing for the grid
@@ -227,14 +177,16 @@ def create_pdf(images, pdf_path):
             # Draw the image on the canvas
             c.drawInlineImage(image, x, y, width=image_width, height=image_height)
 
-        # Save the PDF
+        # Save the PDF to the specified path directly
         c.save()
 
-        return True
+        return pdf_path  # Return the path where the PDF is saved
 
     except Exception as e:
-        st.error(f"Error creating PDF: {str(e)}")
-        return False
+        logging.error(f"Error creating PDF: {str(e)}")
+        return None
+
+
 # Function to display the PDF in Streamlit
 def display_pdf(pdf_path):
     try:
@@ -256,7 +208,8 @@ def main():
     template_path = "idcard/projectidcard/ritika/ST.png"
     image_folder = "idcard/projectidcard/ritika/downloaded_images"
     qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
-    output_pdf_path = "output/generated_id_cards.pdf"
+    #output_pdf_path = "pages/generated_id_cards.pdf"  # Adjust path as per your file structure
+    output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"  # Default download path
 
     # Sidebar for managing CSV
     st.sidebar.header('Manage CSV')
@@ -289,7 +242,6 @@ def main():
                         st.success(f'CSV file "{csv_file.name}" updated successfully.')
                         st.session_state['csv_data_updated'] = False  # Reset the flag
 
-                    # Store initial state of
                     # Store initial state of csv_data in session state
                     if 'csv_data' not in st.session_state:
                         st.session_state['csv_data'] = csv_data
@@ -340,13 +292,14 @@ def main():
                     st.image(card, caption=f"Generated ID Card for ID: {id_list[i]}")
 
                 # Create PDF of generated ID cards
-                if create_pdf(generated_cards, output_pdf_path):
-                    st.success(f"PDF created successfully: [Download PDF]({output_pdf_path})")
+                pdf_path = create_pdf(generated_cards, output_pdf_path_default)
+                if pdf_path:
+                    st.success(f"PDF created successfully: [Download PDF]({pdf_path})")
                 else:
                     st.error("Failed to create PDF.")
 
                 # Display PDF in Streamlit
-                display_pdf(output_pdf_path)
+                display_pdf(pdf_path)
 
     elif generate_mode == 'All Students':
         st.info("Generating ID cards for all students...")
@@ -360,9 +313,15 @@ def main():
         if generated_cards:
             st.success(f"Generated {len(generated_cards)} ID cards.")
 
-    if create_pdf(generated_cards, output_pdf_path):
-        st.success(f"PDF created successfully: [Download PDF]({output_pdf_path})")
-    else:
-        st.error("Failed to create PDF.")
+            # Create PDF of generated ID cards
+            pdf_path = create_pdf(generated_cards, output_pdf_path_default)
+            if pdf_path:
+                st.success(f"PDF created successfully: [Download PDF]({pdf_path})")
+            else:
+                st.error("Failed to create PDF.")
+
+            # Display PDF in Streamlit
+            display_pdf(pdf_path)
+
 if __name__ == "__main__":
     main()
