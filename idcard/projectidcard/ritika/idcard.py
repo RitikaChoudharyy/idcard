@@ -23,6 +23,7 @@ def preprocess_image(image_path):
         st.error(f"Error opening image at image_path: {str(e)}")
         return None
 
+# Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
@@ -45,7 +46,6 @@ def generate_card(data, template_path, image_folder, qr_folder):
         st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
         return None
 
-    # Preprocess the image
     preprocessed_pic = preprocess_image(pic_path)
     if preprocessed_pic is None:
         return None
@@ -71,7 +71,6 @@ def generate_card(data, template_path, image_folder, qr_folder):
         except IOError:
             name_font = ImageFont.load_default()
         
-        # Adjust text wrapping and positioning
         wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
         draw.text((311, 121), wrapped_div, font=name_font, fill='black')
         
@@ -136,11 +135,11 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
+# Function to create PDF with generated ID cards
 def create_pdf(images, pdf_path):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
 
-        # Define the dimensions and spacing for the grid
         grid_width = 2
         grid_height = 4
         image_width = 3.575 * inch
@@ -148,43 +147,36 @@ def create_pdf(images, pdf_path):
         spacing_x = 1.5 * mm
         spacing_y = 1.5 * mm
 
-        # Calculate total width and height of the grid
         total_width = grid_width * (image_width + spacing_x)
         total_height = grid_height * (image_height + spacing_y)
 
-        # Track the current page
         current_page = 0
 
         for i, image in enumerate(images):
             col = i % grid_width
             row = i // grid_width
 
-            # Check if the current page is filled and there are more images to be processed
             if i > 0 and i % (grid_width * grid_height) == 0:
-                # Start a new page
                 current_page += 1
                 c.showPage()
 
-            # Calculate the starting position for each new page
             start_x = (letter[0] - total_width) / 2
             start_y = (letter[1] - total_height) / 2 - current_page * total_height
 
-            # Calculate the position for the current image on the current page
             x = start_x + col * (image_width + spacing_x)
             y = start_y + row * (image_height + spacing_y)
 
-            # Draw the image on the canvas
             c.drawInlineImage(image, x, y, width=image_width, height=image_height)
 
-        # Save the PDF to the specified path
         c.save()
 
-        return pdf_path  # Return the path where the PDF is saved
+        return pdf_path
 
     except Exception as e:
         logging.error(f"Error creating PDF: {str(e)}")
         return None
 
+# Function to display PDF download link
 def display_pdf(pdf_path):
     try:
         with open(pdf_path, "rb") as f:
@@ -197,33 +189,32 @@ def display_pdf(pdf_path):
         st.error(f"Error displaying PDF: {str(e)}")
 
 def main():
-    # Streamlit setup
+    st.set_page_config(page_title="Automatic ID Card Generation", layout="wide", initial_sidebar_state="expanded", max_upload_size=800 * 1024 * 1024)
+    
     st.title("Automatic ID Card Generation")
 
-    # Update these paths according to your file locations
     template_path = "idcard/projectidcard/ritika/ST.png"
     qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
-    output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"  # Default download path
+    output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"
 
-    # Sidebar for managing CSV
     st.sidebar.header('Manage CSV')
 
-    # File uploader in sidebar
     csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
 
-    # Image uploader in sidebar
     st.sidebar.header("Browse Image Folder")
     image_files = st.sidebar.file_uploader("Upload images", type=["jpg", "jpeg", "png"], accept_multiple_files=True, key='image_files')
     image_folder = "uploaded_images"
     if image_files:
         if not os.path.exists(image_folder):
             os.makedirs(image_folder)
-        
-        # Save the uploaded images to the image_folder
-        for image_file in image_files:
-            with open(os.path.join(image_folder, image_file.name), "wb") as f:
+
+        for i, image_file in enumerate(image_files):
+            # Save the image to the upload folder
+            image_path = os.path.join(image_folder, f"uploaded_image_{i}.png")  # Adjust naming if necessary
+            with open(image_path, "wb") as f:
                 f.write(image_file.getbuffer())
 
+        st.sidebar.success("Images uploaded successfully.")
         st.success(f"Uploaded {len(image_files)} image(s) successfully to {image_folder}")
 
     if csv_file is not None:
