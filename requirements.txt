@@ -1,7 +1,4 @@
-streamlit
-Pillow
-pandas
-fpdf
+
 opencv-python
 numpy
 textwrap3
@@ -12,7 +9,10 @@ prophet
 pymupdf
 rembg
 onnxruntime
-PyMuPDF
-base64
-streamlit-aggrid
+streamlit==1.10.0
+pandas==1.5.3
+Pillow==9.5.0
+fpdf==1.7.2
+PyMuPDF==1.22.0
+streamlit-aggrid==0.3.3
 
