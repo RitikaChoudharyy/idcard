@@ -134,11 +134,9 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
-# Modify the create_pdf function to directly save to the default download path
-def create_pdf(images):
-    try:
-        pdf_path = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"  # Directly specify the path
 
+def create_pdf(images, pdf_path):
+    try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
 
         # Define the dimensions and spacing for the grid
@@ -177,7 +175,7 @@ def create_pdf(images):
             # Draw the image on the canvas
             c.drawInlineImage(image, x, y, width=image_width, height=image_height)
 
-        # Save the PDF to the specified path directly
+        # Save the PDF to the specified path
         c.save()
 
         return pdf_path  # Return the path where the PDF is saved
@@ -187,17 +185,17 @@ def create_pdf(images):
         return None
 
 
-# Function to display the PDF in Streamlit
 def display_pdf(pdf_path):
     try:
         with open(pdf_path, "rb") as f:
             base64_pdf = base64.b64encode(f.read()).decode('utf-8')
-            pdf_display = f'<embed src="data:application/pdf;base64,{base64_pdf}" width="700" height="1000" type="application/pdf">'
+            pdf_display = f'<a href="data:application/pdf;base64,{base64_pdf}" download="generated_id_cards.pdf">Download PDF</a>'
             st.markdown(pdf_display, unsafe_allow_html=True)
     except FileNotFoundError:
         st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
+        
 def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
@@ -289,14 +287,13 @@ def main():
                     st.image(card, caption=f"Generated ID Card for ID: {id_list[i]}")
 
                 # Create PDF of generated ID cards
-                pdf_path = create_pdf(generated_cards)
+                pdf_path = create_pdf(generated_cards, output_pdf_path_default)
                 if pdf_path:
-                    st.success(f"PDF created successfully: [Download PDF]({pdf_path})")
+                    st.success(f"PDF created successfully.")
+                    # Display download button for the PDF
+                    display_pdf(pdf_path)
                 else:
                     st.error("Failed to create PDF.")
-
-                # Display PDF in Streamlit
-                display_pdf(pdf_path)
 
     elif generate_mode == 'All Students':
         st.info("Generating ID cards for all students...")
@@ -311,14 +308,13 @@ def main():
             st.success(f"Generated {len(generated_cards)} ID cards.")
 
             # Create PDF of generated ID cards
-            pdf_path = create_pdf(generated_cards)
+            pdf_path = create_pdf(generated_cards, output_pdf_path_default)
             if pdf_path:
-                st.success(f"PDF created successfully: [Download PDF]({pdf_path})")
+                st.success(f"PDF created successfully.")
+                # Display download button for the PDF
+                display_pdf(pdf_path)
             else:
                 st.error("Failed to create PDF.")
-
-            # Display PDF in Streamlit
-            display_pdf(pdf_path)
 
 if __name__ == "__main__":
     main()
