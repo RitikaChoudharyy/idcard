@@ -191,8 +191,6 @@ def main():
     template_path = "idcard/projectidcard/ritika/ST.png"
     image_folder = "idcard/projectidcard/ritika/downloaded_images"
     qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
-    output_pdf_path = "generated_id_cards.pdf"
-
     pdf_path = "generated_id_cards.pdf"
     create_pdf(generated_cards, pdf_path)
     st.write(f"PDF path to display: {pdf_path}")  # A
