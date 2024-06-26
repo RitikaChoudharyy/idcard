@@ -202,7 +202,6 @@ def main():
 
     # Update these paths according to your file locations
     template_path = "idcard/projectidcard/ritika/ST.png"
-    image_folder = "idcard/projectidcard/ritika/downloaded_images"
     qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
     output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"  # Default download path
 
@@ -211,6 +210,19 @@ def main():
 
     # File uploader in sidebar
     csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
+
+    # File uploader for image folder
+    image_folder = st.sidebar.file_uploader("Select the Image Folder", type=['zip'], key='image_uploader')
+    if image_folder:
+        import zipfile
+        import tempfile
+
+        # Create a temporary directory
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with zipfile.ZipFile(image_folder, 'r') as zip_ref:
+                zip_ref.extractall(temp_dir)
+            # Update image_folder path to the temporary directory
+            image_folder = temp_dir
 
     if csv_file is not None:
         try:
@@ -336,5 +348,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
