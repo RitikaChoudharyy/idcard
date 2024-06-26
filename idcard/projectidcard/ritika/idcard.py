@@ -293,6 +293,5 @@ def display_pdf(pdf_path):
 
             # Display PDF in Streamlit
             display_pdf(pdf_path)
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
