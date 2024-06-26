@@ -286,8 +286,17 @@ def main():
                 for i, card in enumerate(generated_cards):
                     st.image(card, caption=f"Generated ID Card for ID: {id_list[i]}")
 
+                # Optional: Upload background logo for second column
+                background_logo = st.file_uploader("Upload Background Logo for Second Column", type=["jpg", "jpeg", "png"])
+
                 # Create PDF of generated ID cards
-                pdf_path = create_pdf(generated_cards, output_pdf_path_default)
+                pdf_path = output_pdf_path_default
+                if background_logo:
+                    background_image = Image.open(background_logo)
+                    pdf_path = create_pdf(generated_cards, output_pdf_path_default, background_image)
+                else:
+                    pdf_path = create_pdf(generated_cards, output_pdf_path_default)
+
                 if pdf_path:
                     st.success(f"PDF created successfully.")
                     # Display download button for the PDF
@@ -307,8 +316,17 @@ def main():
         if generated_cards:
             st.success(f"Generated {len(generated_cards)} ID cards.")
 
+            # Optional: Upload background logo for second column
+            background_logo = st.file_uploader("Upload Background Logo for Second Column", type=["jpg", "jpeg", "png"])
+
             # Create PDF of generated ID cards
-            pdf_path = create_pdf(generated_cards, output_pdf_path_default)
+            pdf_path = output_pdf_path_default
+            if background_logo:
+                background_image = Image.open(background_logo)
+                pdf_path = create_pdf(generated_cards, output_pdf_path_default, background_image)
+            else:
+                pdf_path = create_pdf(generated_cards, output_pdf_path_default)
+
             if pdf_path:
                 st.success(f"PDF created successfully.")
                 # Display download button for the PDF
@@ -318,4 +336,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
