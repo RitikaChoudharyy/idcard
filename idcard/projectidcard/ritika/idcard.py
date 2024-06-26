@@ -6,6 +6,7 @@ import textwrap
 from fpdf import FPDF
 import fitz  # PyMuPDF
 import base64
+from st_aggrid import AgGrid
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
@@ -199,58 +200,71 @@ def main():
 
             # Checkbox for modifying CSV in col2
             modified_csv = st.sidebar.checkbox('Modify CSV')
-    if modified_csv:
-    st.subheader('Edit CSV')
-    # Display editable DataFrame below the checkbox
-    with st.expander("View/Modify CSV"):
-        # Use st.aggrid to display and edit the CSV
-        df_edited = st.aggrid(csv_data, editable=True)
+            if modified_csv:
+                st.subheader('Edit CSV')
+                # Display editable DataFrame below the checkbox
+                with st.expander("View/Modify CSV"):
+                    # Use st.aggrid to display and edit the CSV
+                    df_edited = AgGrid(csv_data, editable=True)
 
-        # Automatically save changes to CSV when data is edited
-        if st.session_state.csv_data_updated:
-            df_edited.to_csv(csv_file.name, index=False)
-            st.success(f'CSV file "{csv_file.name}" updated successfully.')
-            st.session_state.csv_data_updated = False  # Reset the flag
+                    # Automatically save changes to CSV when data is edited
+                    if 'csv_data_updated' in st.session_state and st.session_state.csv_data_updated:
+                        df_edited.to_csv(csv_file.name, index=False)
+                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
+                        st.session_state.csv_data_updated = False  # Reset the flag
 
-        # Store the initial state of csv_data in session state
-        if 'csv_data' not in st.session_state:
-            st.session_state.csv_data = csv_data
+                    # Store the initial state of csv_data in session state
+                    if 'csv_data' not in st.session_state:
+                        st.session_state.csv_data = csv_data
 
-        # Check for changes in data and update session state if needed
-        if df_edited.equals(st.session_state.csv_data):
-            st.session_state.csv_data_updated = False
-        else:
-            st.session_state.csv_data_updated = True
-            st.session_state.csv_data = df_edited.copy()
+                    # Check for changes in data and update session state if needed
+                    if df_edited.data.equals(st.session_state.csv_data):
+                        st.session_state.csv_data_updated = False
+                    else:
+                        st.session_state.csv_data_updated = True
+                        st.session_state.csv_data = df_edited.data.copy()
 
-        # Button to manually save changes
-        if st.button('Save Changes'):
-            df_edited.to_csv(csv_file.name, index=False)
-            st.success(f'CSV file "{csv_file.name}" updated successfully.')
+                    # Button to manually save changes
+                    if st.button('Save Changes'):
+                        df_edited.data.to_csv(csv_file.name, index=False)
+                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
 
-st.subheader('Generate ID Cards')
-generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
+    st.subheader('Generate ID Cards')
+    generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
 
-if generate_mode == 'Individual ID':
-    id_input = st.text_input('Enter the ID:')
-    if st.button('Generate ID Card'):
-        if not id_input.isdigit():
-            st.warning('Invalid input. Please enter a valid numeric ID.')
-        else:
-            selected_data = csv_data[csv_data['ID'] == int(id_input)].iloc[0]
-            generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
-            if generated_card:
-                st.image(generated_card, caption=f"Generated ID Card for ID: {id_input}")
+    if generate_mode == 'Individual ID':
+        id_input = st.text_input('Enter the ID:')
+        if st.button('Generate ID Card'):
+            if not id_input.isdigit():
+                st.warning('Invalid input. Please enter a valid numeric ID.')
+            else:
+                selected_data = csv_data[csv_data['ID'] == int(id_input)].iloc[0]
+                generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
+                if generated_card:
+                    st.image(generated_card, caption=f"Generated ID Card for ID: {id_input}")
 
-elif generate_mode == 'Comma-separated IDs':
-    ids_input = st.text_input('Enter comma-separated IDs:')
-    if st.button('Generate ID Cards'):
-        id_list = [int(id.strip()) for id in ids_input.split(',') if id.strip().isdigit()]
+    elif generate_mode == 'Comma-separated IDs':
+        ids_input = st.text_input('Enter comma-separated IDs:')
+        if st.button('Generate ID Cards'):
+            id_list = [int(id.strip()) for id in ids_input.split(',') if id.strip().isdigit()]
+            generated_cards = []
+
+            for id_input in id_list:
+                selected_data = csv_data[csv_data['ID'] == id_input].iloc[0]
+                generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
+                if generated_card:
+                    generated_cards.append(generated_card)
+
+            if generated_cards:
+                st.success(f"Generated {len(generated_cards)} ID cards.")
+                st.image(generated_cards, width=300, caption="Generated ID Cards")
+
+    elif generate_mode == 'All Students':
+        st.info("Generating ID cards for all students...")
         generated_cards = []
 
-        for id_input in id_list:
-            selected_data = csv_data[csv_data['ID'] == id_input].iloc[0]
-            generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
+        for index, data in csv_data.iterrows():
+            generated_card = generate_card(data, template_path, image_folder, qr_folder)
             if generated_card:
                 generated_cards.append(generated_card)
 
@@ -258,26 +272,12 @@ elif generate_mode == 'Comma-separated IDs':
             st.success(f"Generated {len(generated_cards)} ID cards.")
             st.image(generated_cards, width=300, caption="Generated ID Cards")
 
-elif generate_mode == 'All Students':
-    st.info("Generating ID cards for all students...")
-    generated_cards = []
+            # Create PDF of generated ID cards
+            pdf_path = create_pdf(generated_cards, output_pdf_path)
+            st.success(f"PDF created successfully: [Download PDF]({pdf_path})")
 
-    for index, data in csv_data.iterrows():
-        generated_card = generate_card(data, template_path, image_folder, qr_folder)
-        if generated_card:
-            generated_cards.append(generated_card)
-
-    if generated_cards:
-        st.success(f"Generated {len(generated_cards)} ID cards.")
-        st.image(generated_cards, width=300, caption="Generated ID Cards")
-
-        # Create PDF of generated ID cards
-        pdf_path = create_pdf(generated_cards, output_pdf_path)
-        st.success(f"PDF created successfully: [Download PDF]({pdf_path})")
-
-        # Display PDF in Streamlit
-        display_pdf(pdf_path)
+            # Display PDF in Streamlit
+            display_pdf(pdf_path)
                         
 if __name__ == '__main__':
     main()
-
