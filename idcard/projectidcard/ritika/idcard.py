@@ -218,10 +218,17 @@ def main():
         
     with col2:
         st.header("Browse Image Folder")
-        image_folder = st.text_input("Enter the path to the image folder:", key='image_folder_input')
-        if image_folder and not os.path.exists(image_folder):
-            st.error(f"The path {image_folder} does not exist. Please enter a valid folder path.")
-    
+        image_files = st.file_uploader("Upload images", type=["jpg", "jpeg", "png"], accept_multiple_files=True, key='image_files')
+        image_folder = "uploaded_images"
+        if image_files:
+            if not os.path.exists(image_folder):
+                os.makedirs(image_folder)
+            for image_file in image_files:
+                image_path = os.path.join(image_folder, image_file.name)
+                with open(image_path, "wb") as f:
+                    f.write(image_file.getbuffer())
+            st.success(f"Uploaded {len(image_files)} images to {image_folder}")
+
     if csv_file is not None:
         try:
             csv_data = pd.read_csv(csv_file)
