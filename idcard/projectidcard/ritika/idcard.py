@@ -10,7 +10,9 @@ from st_aggrid import AgGrid
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
-# Function to create PDF from the generated ID cards using ReportLab
+import logging
+
+logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 def create_pdf(images, pdf_path):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
@@ -57,8 +59,9 @@ def create_pdf(images, pdf_path):
         return True
 
     except Exception as e:
-        st.error(f"Error creating PDF: {str(e)}")
+        logging.error(f"Error creating PDF: {str(e)}")
         return False
+
 # Function to display the PDF in Streamlit
 def display_pdf(pdf_path):
     try:
@@ -68,6 +71,8 @@ def display_pdf(pdf_path):
             st.markdown(pdf_display, unsafe_allow_html=True)
     except FileNotFoundError:
         st.error(f"PDF file '{pdf_path}' not found.")
+    except Exception as e:
+        st.error(f"Error displaying PDF: {str(e)}")
 
 
 # Function to preprocess image (convert to RGB)
@@ -200,7 +205,8 @@ def main():
     template_path = "idcard/projectidcard/ritika/ST.png"
     image_folder = "idcard/projectidcard/ritika/downloaded_images"
     qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
-    output_pdf_path = "pages/generated_id_cards.pdf"  # Update as per your file structure
+    output_pdf_path = "generated_id_cards.pdf"
+
 
     # Sidebar for managing CSV
     st.sidebar.header('Manage CSV')
