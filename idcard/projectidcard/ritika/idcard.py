@@ -40,17 +40,13 @@ def generate_card(data, template_path, image_folder, qr_folder):
         st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
         return None
 
-    preprocessed_pic = preprocess_image(pic_path)
-    if preprocessed_pic is None:
-        return None
-    
     try:
+        preprocessed_pic = preprocess_image(pic_path)
+        if preprocessed_pic is None:
+            return None
+        
         preprocessed_pic = preprocessed_pic.resize((144, 145))
-    except Exception as e:
-        st.error(f"Error resizing image for ID: {pic_id}. Error: {str(e)}")
-        return None
-
-    try:
+        
         template = Image.open(template_path)
         qr = Image.open(qr_path).resize((161, 159))
         
@@ -89,10 +85,13 @@ def generate_card(data, template_path, image_folder, qr_folder):
         
         return template
     
+    except FileNotFoundError:
+        st.error(f"Image file not found: {pic_path}")
+        return None
+    
     except Exception as e:
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
-
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
     words = text.split()
