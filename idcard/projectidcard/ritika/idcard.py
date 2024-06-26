@@ -181,20 +181,21 @@ def display_pdf(pdf_path):
         base64_pdf = base64.b64encode(f.read()).decode('utf-8')
         pdf_display = f'<embed src="data:application/pdf;base64,{base64_pdf}" width="700" height="1000" type="application/pdf">'
         st.markdown(pdf_display, unsafe_allow_html=True)
+
+# Define your main function
 def main():
     # Streamlit setup
-     st.title("Automatic ID Card Generation")
+    st.title("Automatic ID Card Generation")
 
     # Update these paths according to your file locations
     template_path = "idcard/projectidcard/ritika/ST.png"
     image_folder = "idcard/projectidcard/ritika/downloaded_images"
-    # Streamlit setup (continued)
     qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
     output_pdf_path = "generated_id_cards.pdf"
 
     # Sidebar for managing CSV
     st.sidebar.header('Manage CSV')
-
+    
     # File uploader in sidebar
     csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
 
@@ -291,5 +292,6 @@ def main():
 
             # Display PDF in Streamlit
             display_pdf(pdf_path)
+
 if __name__ == "__main__":
     main()
