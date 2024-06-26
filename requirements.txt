@@ -1,8 +1,10 @@
+
 altair
-attrs
+attrs 
 blinker
 cachetools
 certifi
+chardet
 charset-normalizer
 click
 colorama
@@ -51,6 +53,7 @@ python-decouple
 pytz
 referencing
 rembg
+reportlab
 requests
 rich
 rpds-py
@@ -72,9 +75,7 @@ typing_extensions
 tzdata
 tzlocal
 urllib3
-logging
 validators
 virtualenv
 watchdog
 zipp
-reportlab
