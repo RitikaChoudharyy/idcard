@@ -136,7 +136,7 @@ def get_head_by_division(division_name):
     return divisions.get(division_name, "Division not found or head information not available.")
 
 # Function to create PDF with generated ID cards
-def create_pdf(images, pdf_path):
+def create_pdf(images, pdf_path, background_image=None):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
 
@@ -166,7 +166,10 @@ def create_pdf(images, pdf_path):
             x = start_x + col * (image_width + spacing_x)
             y = start_y + row * (image_height + spacing_y)
 
-            c.drawInlineImage(image, x, y, width=image_width, height=image_height)
+            if background_image:
+                c.drawImage(background_image, x, y, width=image_width, height=image_height, preserveAspectRatio=True)
+            else:
+                c.drawInlineImage(image, x, y, width=image_width, height=image_height)
 
         c.save()
 
@@ -193,8 +196,7 @@ def main():
         st.set_page_config(
             page_title="Automatic ID Card Generation",
             layout="wide",
-            initial_sidebar_state="expanded",
-            max_upload_size=800 * 1024 * 1024  # 800 MB in bytes
+            initial_sidebar_state="expanded"
         )
 
         st.title("Automatic ID Card Generation")
@@ -207,7 +209,7 @@ def main():
         csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
 
         st.sidebar.header("Browse Image Folder")
-        image_files = st.sidebar.file_uploader("Upload images", type=["jpg", "jpeg", "png"], accept_multiple_files=True, key='image_files')
+        image_files = st.sidebar.file_uploader("Upload images", type=["jpg", "jpeg", "png"], accept_multiple_files=True, key='image_files
         image_folder = "uploaded_images"
 
         if image_files:
