@@ -211,23 +211,20 @@ def main():
     # File uploader in sidebar
     csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
 
-    # Main section for image folder uploader
-    col1, col2 = st.columns(2)
-    with col1:
-        st.header("Generate ID Cards")
+    # Image uploader in sidebar
+    st.sidebar.header("Browse Image Folder")
+    image_files = st.sidebar.file_uploader("Upload images", type=["jpg", "jpeg", "png"], accept_multiple_files=True, key='image_files')
+    image_folder = "uploaded_images"
+    if image_files:
+        if not os.path.exists(image_folder):
+            os.makedirs(image_folder)
         
-    with col2:
-        st.header("Browse Image Folder")
-        image_files = st.file_uploader("Upload images", type=["jpg", "jpeg", "png"], accept_multiple_files=True, key='image_files')
-        image_folder = "uploaded_images"
-        if image_files:
-            if not os.path.exists(image_folder):
-                os.makedirs(image_folder)
-            for image_file in image_files:
-                image_path = os.path.join(image_folder, image_file.name)
-                with open(image_path, "wb") as f:
-                    f.write(image_file.getbuffer())
-            st.success(f"Uploaded {len(image_files)} images to {image_folder}")
+        # Save the uploaded images to the image_folder
+        for image_file in image_files:
+            with open(os.path.join(image_folder, image_file.name), "wb") as f:
+                f.write(image_file.getbuffer())
+
+        st.success(f"Uploaded {len(image_files)} image(s) successfully to {image_folder}")
 
     if csv_file is not None:
         try:
@@ -354,3 +351,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+        
