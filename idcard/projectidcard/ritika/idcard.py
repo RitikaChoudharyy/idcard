@@ -10,6 +10,64 @@ from st_aggrid import AgGrid
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
+# Function to create PDF from the generated ID cards using ReportLab
+def create_pdf(images, pdf_path):
+    try:
+        c = canvas.Canvas(pdf_path, pagesize=letter)
+
+        # Define the dimensions and spacing for the grid
+        grid_width = 2
+        grid_height = 4
+        image_width = 3.575 * inch
+        image_height = 2.325 * inch
+        spacing_x = 1.5 * mm
+        spacing_y = 1.5 * mm
+
+        # Calculate total width and height of the grid
+        total_width = grid_width * (image_width + spacing_x)
+        total_height = grid_height * (image_height + spacing_y)
+
+        # Track the current page
+        current_page = 0
+
+        for i, image in enumerate(images):
+            col = i % grid_width
+            row = i // grid_width
+
+            # Check if the current page is filled and there are more images to be processed
+            if i > 0 and i % (grid_width * grid_height) == 0:
+                # Start a new page
+                current_page += 1
+                c.showPage()
+
+            # Calculate the starting position for each new page
+            start_x = (letter[0] - total_width) / 2
+            start_y = (letter[1] - total_height) / 2 - current_page * total_height
+
+            # Calculate the position for the current image on the current page
+            x = start_x + col * (image_width + spacing_x)
+            y = start_y + row * (image_height + spacing_y)
+
+            # Draw the image on the canvas
+            c.drawInlineImage(image, x, y, width=image_width, height=image_height)
+
+        # Save the PDF
+        c.save()
+
+        return True
+
+    except Exception as e:
+        st.error(f"Error creating PDF: {str(e)}")
+        return False
+# Function to display the PDF in Streamlit
+def display_pdf(pdf_path):
+    try:
+        with open(pdf_path, "rb") as f:
+            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+            pdf_display = f'<embed src="data:application/pdf;base64,{base64_pdf}" width="700" height="1000" type="application/pdf">'
+            st.markdown(pdf_display, unsafe_allow_html=True)
+    except FileNotFoundError:
+        st.error(f"PDF file '{pdf_path}' not found.")
 
 
 # Function to preprocess image (convert to RGB)
@@ -133,62 +191,6 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
-# Function to create PDF from the generated ID cards using ReportLab
-def create_pdf(images, pdf_path):
-    try:
-        c = canvas.Canvas(pdf_path, pagesize=letter)
-
-        # Define the dimensions and spacing for the grid
-        grid_width = 2
-        grid_height = 4
-        image_width = 3.575 * inch
-        image_height = 2.325 * inch
-        spacing_x = 1.5 * mm
-        spacing_y = 1.5 * mm
-
-        # Calculate total width and height of the grid
-        total_width = grid_width * (image_width + spacing_x)
-        total_height = grid_height * (image_height + spacing_y)
-
-        # Track the current page
-        current_page = 0
-
-        for i, image in enumerate(images):
-            col = i % grid_width
-            row = i // grid_width
-
-            # Check if the current page is filled and there are more images to be processed
-            if i > 0 and i % (grid_width * grid_height) == 0:
-                # Start a new page
-                current_page += 1
-                c.showPage()
-
-            # Calculate the starting position for each new page
-            start_x = (letter[0] - total_width) / 2
-            start_y = (letter[1] - total_height) / 2 - current_page * total_height
-
-            # Calculate the position for the current image on the current page
-            x = start_x + col * (image_width + spacing_x)
-            y = start_y + row * (image_height + spacing_y)
-
-            # Draw the image on the canvas
-            c.drawInlineImage(image, x, y, width=image_width, height=image_height)
-
-        # Save the PDF
-        c.save()
-
-    except Exception as e:
-        st.error(f"Error creating PDF: {str(e)}")
-# Function to display the PDF in Streamlit
-def display_pdf(pdf_path):
-    try:
-        with open(pdf_path, "rb") as f:
-            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
-            pdf_display = f'<embed src="data:application/pdf;base64,{base64_pdf}" width="700" height="1000" type="application/pdf">'
-            st.markdown(pdf_display, unsafe_allow_html=True)
-    except FileNotFoundError:
-        st.error(f"PDF file '{pdf_path}' not found.")
-
 # Main function to run Streamlit app
 def main():
     # Streamlit setup
@@ -198,7 +200,7 @@ def main():
     template_path = "idcard/projectidcard/ritika/ST.png"
     image_folder = "idcard/projectidcard/ritika/downloaded_images"
     qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
-    output_pdf_path = "generated_id_cards.pdf"
+    output_pdf_path = "pages/generated_id_cards.pdf"  # Update as per your file structure
 
     # Sidebar for managing CSV
     st.sidebar.header('Manage CSV')
@@ -281,12 +283,13 @@ def main():
                     st.image(card, caption=f"Generated ID Card for ID: {id_list[i]}")
 
                 # Create PDF of generated ID cards
-                pdf_path = "generated_id_cards.pdf"
-                create_pdf(generated_cards, pdf_path)
-                st.success(f"PDF created successfully: [Download PDF]({pdf_path})")
+                if create_pdf(generated_cards, output_pdf_path):
+                    st.success(f"PDF created successfully: [Download PDF]({output_pdf_path})")
+                else:
+                    st.error("Failed to create PDF.")
 
                 # Display PDF in Streamlit
-                display_pdf(pdf_path)
+                display_pdf(output_pdf_path)
 
     elif generate_mode == 'All Students':
         st.info("Generating ID cards for all students...")
@@ -301,13 +304,13 @@ def main():
             st.success(f"Generated {len(generated_cards)} ID cards.")
 
             # Create PDF of generated ID cards
-            pdf_path = "generated_id_cards.pdf"
-            create_pdf(generated_cards, pdf_path)
-            st.success(f"PDF created successfully: [Download PDF]({pdf_path})")
+            if create_pdf(generated_cards, output_pdf_path):
+                st.success(f"PDF created successfully: [Download PDF]({output_pdf_path})")
+            else:
+                st.error("Failed to create PDF.")
 
             # Display PDF in Streamlit
-            display_pdf(pdf_path)
+            display_pdf(output_pdf_path)
 
 if __name__ == "__main__":
     main()
-
