@@ -198,8 +198,6 @@ def display_pdf(pdf_path):
         st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
-
-# Main function to run Streamlit app
 def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
@@ -208,7 +206,6 @@ def main():
     template_path = "idcard/projectidcard/ritika/ST.png"
     image_folder = "idcard/projectidcard/ritika/downloaded_images"
     qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
-    #output_pdf_path = "pages/generated_id_cards.pdf"  # Adjust path as per your file structure
     output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"  # Default download path
 
     # Sidebar for managing CSV
@@ -274,32 +271,32 @@ def main():
                 if generated_card:
                     st.image(generated_card, caption=f"Generated ID Card for ID: {id_input}")
 
-elif generate_mode == 'Comma-separated IDs':
-    ids_input = st.text_input('Enter comma-separated IDs:')
-    if st.button('Generate ID Cards'):
-        id_list = [int(id.strip()) for id in ids_input.split(',') if id.strip().isdigit()]
-        generated_cards = []
+    elif generate_mode == 'Comma-separated IDs':
+        ids_input = st.text_input('Enter comma-separated IDs:')
+        if st.button('Generate ID Cards'):
+            id_list = [int(id.strip()) for id in ids_input.split(',') if id.strip().isdigit()]
+            generated_cards = []
 
-        for id_input in id_list:
-            selected_data = csv_data[csv_data['ID'] == id_input].iloc[0]
-            generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
-            if generated_card:
-                generated_cards.append(generated_card)
+            for id_input in id_list:
+                selected_data = csv_data[csv_data['ID'] == id_input].iloc[0]
+                generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
+                if generated_card:
+                    generated_cards.append(generated_card)
 
-        if generated_cards:
-            st.success(f"Generated {len(generated_cards)} ID cards.")
-            for i, card in enumerate(generated_cards):
-                st.image(card, caption=f"Generated ID Card for ID: {id_list[i]}")
+            if generated_cards:
+                st.success(f"Generated {len(generated_cards)} ID cards.")
+                for i, card in enumerate(generated_cards):
+                    st.image(card, caption=f"Generated ID Card for ID: {id_list[i]}")
 
-            # Create PDF of generated ID cards
-            pdf_path = create_pdf(generated_cards)
-            if pdf_path:
-                st.success(f"PDF created successfully: [Download PDF]({pdf_path})")
-            else:
-                st.error("Failed to create PDF.")
+                # Create PDF of generated ID cards
+                pdf_path = create_pdf(generated_cards)
+                if pdf_path:
+                    st.success(f"PDF created successfully: [Download PDF]({pdf_path})")
+                else:
+                    st.error("Failed to create PDF.")
 
-            # Display PDF in Streamlit
-            display_pdf(pdf_path)
+                # Display PDF in Streamlit
+                display_pdf(pdf_path)
 
     elif generate_mode == 'All Students':
         st.info("Generating ID cards for all students...")
@@ -314,7 +311,7 @@ elif generate_mode == 'Comma-separated IDs':
             st.success(f"Generated {len(generated_cards)} ID cards.")
 
             # Create PDF of generated ID cards
-            pdf_path = create_pdf(generated_cards, output_pdf_path_default)
+            pdf_path = create_pdf(generated_cards)
             if pdf_path:
                 st.success(f"PDF created successfully: [Download PDF]({pdf_path})")
             else:
@@ -325,3 +322,4 @@ elif generate_mode == 'Comma-separated IDs':
 
 if __name__ == "__main__":
     main()
+
