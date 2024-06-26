@@ -7,6 +7,11 @@ from fpdf import FPDF
 import fitz  # PyMuPDF
 import base64
 from st_aggrid import AgGrid
+from st_aggrid import AgGrid
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.units import inch, mm
+
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
@@ -128,69 +133,71 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
-# Function to create a PDF from the generated ID cards
+# Function to create a PDF from the generated ID cards using ReportLab
 def create_pdf(images, pdf_path):
-    pdf = FPDF()
-    cards_per_page = 8
-    num_pages = -(-len(images) // cards_per_page)
-    
-    for page_num in range(num_pages):
-        pdf.add_page()
-        
-        for i in range(cards_per_page):
-            card_index = page_num * cards_per_page + i
-            if card_index < len(images):
-                card = images[card_index]
-                temp_image_path = f"temp_image_{card_index}.jpg"
-                if card.mode == 'RGBA':
-                    card = card.convert('RGB')
-                card.save(temp_image_path)
-                
-                col = i % 4
-                row = i // 4
-                x_offset = col * (pdf.w / 4 - 10)
-                y_offset = row * (pdf.h / 2 - 10)
-                
-                pdf.image(temp_image_path, x=5 + x_offset, y=5 + y_offset, w=pdf.w / 4 - 10)
-                os.remove(temp_image_path)
-    
-    pdf.output(pdf_path)
-    return pdf_path
+    c = canvas.Canvas(pdf_path, pagesize=letter)
 
-# Function to display the PDF in Streamlit
+    # Define the dimensions and spacing for the grid
+    grid_width = 2
+    grid_height = 4
+    image_width = 3.575 * inch
+    image_height = 2.325 * inch
+    spacing_x = 1.5 * mm
+    spacing_y = 1.5 * mm
+
+    # Calculate total width and height of the grid
+    total_width = grid_width * (image_width + spacing_x)
+    total_height = grid_height * (image_height + spacing_y)
+
+    # Track the current page
+    current_page = 0
+
+    for i, image in enumerate(images):
+        col = i % grid_width
+        row = i // grid_width
+
+        # Check if the current page is filled and there are more images to be processed
+        if i > 0 and i % (grid_width * grid_height) == 0:
+            # Start a new page
+            current_page += 1
+            c.showPage()
+
+        # Calculate the starting position for each new page
+        start_x = (letter[0] - total_width) / 2
+        start_y = (letter[1] - total_height) / 2 - current_page * total_height
+
+        # Calculate the position for the current image on the current page
+        x = start_x + col * (image_width + spacing_x)
+        y = start_y + row * (image_height + spacing_y)
+
+        # Draw the image on the canvas
+        c.drawInlineImage(image, x, y, width=image_width, height=image_height)
+
+    # Save the PDF
+    c.save()
+    # Function to display the PDF in Streamlit
 def display_pdf(pdf_path):
-    doc = fitz.open(pdf_path)
-    pdf_bytes = doc.convert_to_pdf()
-    b64_pdf = base64.b64encode(pdf_bytes).decode()
+    with open(pdf_path, "rb") as f:
+        base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+        pdf_display = f'<embed src="data:application/pdf;base64,{base64_pdf}" width="700" height="1000" type="application/pdf">'
+        st.markdown(pdf_display, unsafe_allow_html=True)
 
-    pdf_display = f'<iframe src="data:application/pdf;base64,{b64_pdf}" width="700" height="1000" type="application/pdf"></iframe>'
-    st.markdown(pdf_display, unsafe_allow_html=True)
 
-    st.download_button(
-        label="Download PDF",
-        data=pdf_bytes,
-        file_name="generated_id_cards.pdf",
-        mime="application/pdf"
-    )
+    def main():
+    # Streamlit setup
+     st.title("Automatic ID Card Generation")
 
-    for page in doc:
-        for img in page.get_images(full=True):
-            xref = img[0]
-            base_image = doc.extract_image(xref)
-            st.image(base_image["image"], caption="Generated ID Card")
-
-def main():
-    st.title("Automatic ID Card Generation")
-    
     # Update these paths according to your file locations
     template_path = "idcard/projectidcard/ritika/ST.png"
     image_folder = "idcard/projectidcard/ritika/downloaded_images"
+    # Streamlit setup (continued)
     qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
     output_pdf_path = "generated_id_cards.pdf"
 
+    # Sidebar for managing CSV
     st.sidebar.header('Manage CSV')
-    
-    # File uploader in col1
+
+    # File uploader in sidebar
     csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
 
     if csv_file is not None:
@@ -198,13 +205,12 @@ def main():
             csv_data = pd.read_csv(csv_file)
             st.sidebar.success('CSV file successfully uploaded/updated.')
 
-            # Checkbox for modifying CSV in col2
+            # Checkbox for modifying CSV in sidebar
             modified_csv = st.sidebar.checkbox('Modify CSV')
             if modified_csv:
                 st.subheader('Edit CSV')
                 # Display editable DataFrame below the checkbox
                 with st.expander("View/Modify CSV"):
-                    # Use st.aggrid to display and edit the CSV
                     grid_response = AgGrid(
                         csv_data,
                         editable=True,
@@ -236,6 +242,7 @@ def main():
         except Exception as e:
             st.error(f"Error reading CSV file: {str(e)}")
 
+    # Section to generate ID cards
     st.subheader('Generate ID Cards')
     generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
 
@@ -280,11 +287,12 @@ def main():
             st.image(generated_cards, width=300, caption="Generated ID Cards")
 
             # Create PDF of generated ID cards
-            pdf_path = create_pdf(generated_cards, output_pdf_path)
+            pdf_path = "generated_id_cards.pdf"
+            create_pdf(generated_cards, pdf_path)
             st.success(f"PDF created successfully: [Download PDF]({pdf_path})")
 
             # Display PDF in Streamlit
             display_pdf(pdf_path)
-                        
+
 if __name__ == '__main__':
     main()
