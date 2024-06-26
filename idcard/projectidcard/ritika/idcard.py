@@ -215,13 +215,17 @@ def main():
                 os.makedirs(image_folder)
 
             for i, image_file in enumerate(image_files):
-                # Save the image to the upload folder
-                image_path = os.path.join(image_folder, f"uploaded_image_{i}.png")  # Adjust naming if necessary
-                with open(image_path, "wb") as f:
-                    f.write(image_file.getbuffer())
+                # Save the image to the upload folder only if it's a .jpg file
+                if image_file.type == "image/jpeg":
+                    image_path = os.path.join(image_folder, f"uploaded_image_{i}.jpg")  # Adjust naming if necessary
+                    with open(image_path, "wb") as f:
+                        f.write(image_file.getbuffer())
+                else:
+                    st.warning(f"Ignoring non-JPEG file: {image_file.name}")
 
             st.sidebar.success("Images uploaded successfully.")
             st.success(f"Uploaded {len(image_files)} image(s) successfully to {image_folder}")
+
 
         if csv_file is not None:
             try:
