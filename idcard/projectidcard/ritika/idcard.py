@@ -3,16 +3,10 @@ import pandas as pd
 import os
 from PIL import Image, ImageDraw, ImageFont
 import textwrap
-from fpdf import FPDF
-import fitz  # PyMuPDF
 import base64
-from st_aggrid import AgGrid
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
-import logging
-
-logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
@@ -24,6 +18,7 @@ def preprocess_image(image_path):
         st.error(f"Error opening image at image_path: {str(e)}")
         return None
 
+# Function to generate ID card image
 def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
@@ -118,26 +113,10 @@ def center_align_text_wrapper(text, width=15):
 
     return centered_text
 
-# Function to get the head by division
-def get_head_by_division(division_name):
-    divisions = {
-        "Advanced Information Technologies Group": "Dr. Sanjay Singh",
-        "Societal Electronics Group": "Dr. Udit Narayan Pal",
-        "Industrial Automation": "Dr. S.S. Sadistap",
-        "Vacuum Electronic Devices Group": "Dr. Sanjay Kr. Ghosh",
-        "High-Frequency Devices & System Group": "Dr. Ayan Bandhopadhyay",
-        "Semiconductor Sensors & Microsystems Group": "Dr. Suchandan Pal",
-        "Semiconductor Process Technology Group": "Dr. Kuldip Singh",
-        "Industrial R & D": "Mr. Ashok Chauhan",
-        "High Power Microwave Systems Group": "Dr. Anirban Bera",
-    }
-
-    division_name = division_name.strip().title()
-    return divisions.get(division_name, "Division not found or head information not available.")
-
-def create_pdf(images, pdf_path):
+# Function to create PDF from a folder of images
+def create_pdf_from_folder(input_folder, output_pdf):
     try:
-        c = canvas.Canvas(pdf_path, pagesize=letter)
+        c = canvas.Canvas(output_pdf, pagesize=letter)
 
         # Define the dimensions and spacing for the grid
         grid_width = 2
@@ -151,10 +130,13 @@ def create_pdf(images, pdf_path):
         total_width = grid_width * (image_width + spacing_x)
         total_height = grid_height * (image_height + spacing_y)
 
+        # Iterate through images in the folder
+        image_paths = [os.path.join(input_folder, file) for file in os.listdir(input_folder) if file.lower().endswith(('.jpg', '.jpeg', '.png'))]
+
         # Track the current page
         current_page = 0
 
-        for i, image in enumerate(images):
+        for i, image_path in enumerate(image_paths):
             col = i % grid_width
             row = i // grid_width
 
@@ -173,7 +155,7 @@ def create_pdf(images, pdf_path):
             y = start_y + row * (image_height + spacing_y)
 
             # Draw the image on the canvas
-            c.drawInlineImage(image, x, y, width=image_width, height=image_height)
+            c.drawImage(image_path, x, y, width=image_width, height=image_height)
 
         # Save the PDF
         c.save()
@@ -181,7 +163,7 @@ def create_pdf(images, pdf_path):
         return True
 
     except Exception as e:
-        logging.error(f"Error creating PDF: {str(e)}")
+        st.error(f"Error creating PDF: {str(e)}")
         return False
 
 # Function to display the PDF in Streamlit
@@ -238,6 +220,7 @@ def main():
                         st.success(f'CSV file "{csv_file.name}" updated successfully.')
                         st.session_state['csv_data_updated'] = False  # Reset the flag
 
+                    # Store initial state of
                     # Store initial state of csv_data in session state
                     if 'csv_data' not in st.session_state:
                         st.session_state['csv_data'] = csv_data
