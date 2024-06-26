@@ -196,105 +196,137 @@ def main():
             initial_sidebar_state="expanded",
             max_upload_size=800 * 1024 * 1024  # 800 MB in bytes
         )
-        
+
         st.title("Automatic ID Card Generation")
         template_path = "idcard/projectidcard/ritika/ST.png"
         qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
         output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"
 
-    st.sidebar.header('Manage CSV')
+        st.sidebar.header('Manage CSV')
 
-    csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
+        csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
 
-    st.sidebar.header("Browse Image Folder")
-    image_files = st.sidebar.file_uploader("Upload images", type=["jpg", "jpeg", "png"], accept_multiple_files=True, key='image_files')
-    image_folder = "uploaded_images"
-    if image_files:
-        if not os.path.exists(image_folder):
-            os.makedirs(image_folder)
+        st.sidebar.header("Browse Image Folder")
+        image_files = st.sidebar.file_uploader("Upload images", type=["jpg", "jpeg", "png"], accept_multiple_files=True, key='image_files')
+        image_folder = "uploaded_images"
 
-        for i, image_file in enumerate(image_files):
-            # Save the image to the upload folder
-            image_path = os.path.join(image_folder, f"uploaded_image_{i}.png")  # Adjust naming if necessary
-            with open(image_path, "wb") as f:
-                f.write(image_file.getbuffer())
-        st.sidebar.success("Images uploaded successfully.")
-        st.success(f"Uploaded {len(image_files)} image(s) successfully to {image_folder}")
+        if image_files:
+            if not os.path.exists(image_folder):
+                os.makedirs(image_folder)
 
-    if csv_file is not None:
-        try:
-            csv_data = pd.read_csv(csv_file)
-            st.sidebar.success('CSV file successfully uploaded/updated.')
+            for i, image_file in enumerate(image_files):
+                # Save the image to the upload folder
+                image_path = os.path.join(image_folder, f"uploaded_image_{i}.png")  # Adjust naming if necessary
+                with open(image_path, "wb") as f:
+                    f.write(image_file.getbuffer())
 
-            # Checkbox for modifying CSV in sidebar
-            modified_csv = st.sidebar.checkbox('Modify CSV')
-            if modified_csv:
-                st.subheader('Edit CSV')
-                # Display editable DataFrame below the checkbox
-                with st.expander("View/Modify CSV"):
-                    grid_response = AgGrid(
-                        csv_data,
-                        editable=True,
-                        height=400,
-                        fit_columns_on_grid_load=True,
-                    )
-                    df_edited = grid_response['data']
+            st.sidebar.success("Images uploaded successfully.")
+            st.success(f"Uploaded {len(image_files)} image(s) successfully to {image_folder}")
 
-                    # Automatically save changes to CSV when data is edited
-                    if st.session_state.get('csv_data_updated', False):
-                        df_edited.to_csv(csv_file.name, index=False)
-                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
-                        st.session_state['csv_data_updated'] = False  # Reset the flag
+        if csv_file is not None:
+            try:
+                csv_data = pd.read_csv(csv_file)
+                st.sidebar.success('CSV file successfully uploaded/updated.')
 
-                    # Store initial state of csv_data in session state
-                    if 'csv_data' not in st.session_state:
-                        st.session_state['csv_data'] = csv_data
+                # Checkbox for modifying CSV in sidebar
+                modified_csv = st.sidebar.checkbox('Modify CSV')
+                if modified_csv:
+                    st.subheader('Edit CSV')
+                    # Display editable DataFrame below the checkbox
+                    with st.expander("View/Modify CSV"):
+                        grid_response = AgGrid(
+                            csv_data,
+                            editable=True,
+                            height=400,
+                            fit_columns_on_grid_load=True,
+                        )
+                        df_edited = grid_response['data']
 
-                    # Check for changes in data and update session state if needed
-                    if not df_edited.equals(st.session_state['csv_data']):
-                        st.session_state['csv_data_updated'] = True
-                        st.session_state['csv_data'] = df_edited.copy()
+                        # Automatically save changes to CSV when data is edited
+                        if st.session_state.get('csv_data_updated', False):
+                            df_edited.to_csv(csv_file.name, index=False)
+                            st.success(f'CSV file "{csv_file.name}" updated successfully.')
+                            st.session_state['csv_data_updated'] = False  # Reset the flag
 
-                    # Button to manually save changes
-                    if st.button('Save Changes'):
-                        df_edited.to_csv(csv_file.name, index=False)
-                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
+                        # Store initial state of csv_data in session state
+                        if 'csv_data' not in st.session_state:
+                            st.session_state['csv_data'] = csv_data
 
-        except Exception as e:
-            st.error(f"Error reading CSV file: {str(e)}")
+                        # Check for changes in data and update session state if needed
+                        if not df_edited.equals(st.session_state['csv_data']):
+                            st.session_state['csv_data_updated'] = True
+                            st.session_state['csv_data'] = df_edited.copy()
 
-    # Section to generate ID cards
-    if image_folder and os.path.exists(image_folder):
-        st.subheader('Generate ID Cards')
-        generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
+                        # Button to manually save changes
+                        if st.button('Save Changes'):
+                            df_edited.to_csv(csv_file.name, index=False)
+                            st.success(f'CSV file "{csv_file.name}" updated successfully.')
 
-        if generate_mode == 'Individual ID':
-            id_input = st.text_input('Enter the ID:')
-            if st.button('Generate ID Card'):
-                if not id_input.isdigit():
-                    st.warning('Invalid input. Please enter a valid numeric ID.')
-                else:
-                    selected_data = csv_data[csv_data['ID'] == int(id_input)].iloc[0]
-                    generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
-                    if generated_card:
-                        st.image(generated_card, caption=f"Generated ID Card for ID: {id_input}")
+            except Exception as e:
+                st.error(f"Error reading CSV file: {str(e)}")
 
-        elif generate_mode == 'Comma-separated IDs':
-            ids_input = st.text_input('Enter comma-separated IDs:')
-            if st.button('Generate ID Cards'):
-                id_list = [int(id.strip()) for id in ids_input.split(',') if id.strip().isdigit()]
+        # Section to generate ID cards
+        if image_folder and os.path.exists(image_folder):
+            st.subheader('Generate ID Cards')
+            generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
+
+            if generate_mode == 'Individual ID':
+                id_input = st.text_input('Enter the ID:')
+                if st.button('Generate ID Card'):
+                    if not id_input.isdigit():
+                        st.warning('Invalid input. Please enter a valid numeric ID.')
+                    else:
+                        selected_data = csv_data[csv_data['ID'] == int(id_input)].iloc[0]
+                        generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
+                        if generated_card:
+                            st.image(generated_card, caption=f"Generated ID Card for ID: {id_input}")
+
+            elif generate_mode == 'Comma-separated IDs':
+                ids_input = st.text_input('Enter comma-separated IDs:')
+                if st.button('Generate ID Cards'):
+                    id_list = [int(id.strip()) for id in ids_input.split(',') if id.strip().isdigit()]
+                    generated_cards = []
+
+                    for id_input in id_list:
+                        selected_data = csv_data[csv_data['ID'] == id_input].iloc[0]
+                        generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
+                        if generated_card:
+                            generated_cards.append(generated_card)
+
+                    if generated_cards:
+                        st.success(f"Generated {len(generated_cards)} ID cards.")
+                        for i, card in enumerate(generated_cards):
+                            st.image(card, caption=f"Generated ID Card for ID: {id_list[i]}")
+
+                        # Optional: Upload background logo for second column
+                        background_logo = st.file_uploader("Upload Background Logo for Second Column", type=["jpg", "jpeg", "png"])
+
+                        # Create PDF of generated ID cards
+                        pdf_path = output_pdf_path_default
+                        if background_logo:
+                            background_image = Image.open(background_logo)
+                            pdf_path = create_pdf(generated_cards, output_pdf_path_default, background_image)
+                        else:
+                            pdf_path = create_pdf(generated_cards, output_pdf_path_default)
+
+                        if pdf_path:
+                            st.success(f"PDF created successfully.")
+                            # Display download button for the PDF
+                            display_pdf(pdf_path)
+                        else:
+                            st.error("Failed to create PDF.")
+
+            elif generate_mode == 'All Students':
+                st.info("Generating ID cards for all students...")
                 generated_cards = []
 
-                for id_input in id_list:
-                    selected_data = csv_data[csv_data['ID'] == id_input].iloc[0]
-                    generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
+                for index, data in csv_data.iterrows():
+                    generated_card = generate_card(data, template_path, image_folder, qr_folder)
                     if generated_card:
                         generated_cards.append(generated_card)
 
                 if generated_cards:
                     st.success(f"Generated {len(generated_cards)} ID cards.")
-                    for i, card in enumerate(generated_cards):
-                        st.image(card, caption=f"Generated ID Card for ID: {id_list[i]}")
 
                     # Optional: Upload background logo for second column
                     background_logo = st.file_uploader("Upload Background Logo for Second Column", type=["jpg", "jpeg", "png"])
@@ -314,37 +346,9 @@ def main():
                     else:
                         st.error("Failed to create PDF.")
 
-        elif generate_mode == 'All Students':
-            st.info("Generating ID cards for all students...")
-            generated_cards = []
-
-            for index, data in csv_data.iterrows():
-                generated_card = generate_card(data, template_path, image_folder, qr_folder)
-                if generated_card:
-                    generated_cards.append(generated_card)
-
-            if generated_cards:
-                st.success(f"Generated {len(generated_cards)} ID cards.")
-
-                # Optional: Upload background logo for second column
-                background_logo = st.file_uploader("Upload Background Logo for Second Column", type=["jpg", "jpeg", "png"])
-
-                # Create PDF of generated ID cards
-                pdf_path = output_pdf_path_default
-                if background_logo:
-                    background_image = Image.open(background_logo)
-                    pdf_path = create_pdf(generated_cards, output_pdf_path_default, background_image)
-                else:
-                    pdf_path = create_pdf(generated_cards, output_pdf_path_default)
-
-                if pdf_path:
-                    st.success(f"PDF created successfully.")
-                    # Display download button for the PDF
-                    display_pdf(pdf_path)
-                else:
-                    st.error("Failed to create PDF.")
+    except Exception as e:
+        st.error(f"Error in application: {e}")
+        logging.error(f"Error in application: {e}")
 
 if __name__ == "__main__":
     main()
-
-        
