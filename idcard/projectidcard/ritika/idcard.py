@@ -94,6 +94,28 @@ def generate_card(data, template_path, image_folder, qr_folder):
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
 
+# Function to get the head by division
+def get_head_by_division(division_name):
+    divisions = {
+        "Advanced Information Technologies Group": ["Dr. Sanjay Singh"],
+        "Societal Electronics Group": ["Dr. Udit Narayan Pal"],
+        "Industrial Automation": ["Dr.S.S.Sadistap"],
+        "Vacuum Electronic Devices Group": ["Dr. Sanjay Kr. Ghosh"],
+        "High-Frequency Devices & System Group": ["Dr. Ayan Bandhopadhyay"],
+        "Semiconductor Sensors & Microsystems Group": ["Dr. Suchandan Pal"],
+        "Semiconductor Process Technology Group": ["Dr. Kuldip Singh"],
+        "Industrial R & D": ["Mr.Ashok Chauhan"],
+        "High Power Microwave Systems Group": ["Dr. Anirban Bera"],
+    }
+
+    division_name = division_name.strip().title()
+
+    if division_name in divisions:
+        head_names = divisions[division_name]
+        return head_names[0]  # Assuming only one head for each division
+    else:
+        return "Division not found or head information not available."
+
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
     words = text.split()
