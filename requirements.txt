@@ -72,6 +72,7 @@ typing_extensions
 tzdata
 tzlocal
 urllib3
+logging
 validators
 virtualenv
 watchdog
