@@ -76,3 +76,4 @@ validators
 virtualenv
 watchdog
 zipp
+reportlab
