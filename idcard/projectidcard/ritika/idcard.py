@@ -187,7 +187,6 @@ def display_pdf(pdf_path):
         pdf_display = f'<embed src="data:application/pdf;base64,{base64_pdf}" width="700" height="1000" type="application/pdf">'
         st.markdown(pdf_display, unsafe_allow_html=True)
 
-# Define your main function
 def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
@@ -275,7 +274,8 @@ def main():
 
             if generated_cards:
                 st.success(f"Generated {len(generated_cards)} ID cards.")
-                st.image(generated_cards, width=300, caption="Generated ID Cards")
+                for i, card in enumerate(generated_cards):
+                    st.image(card, caption=f"Generated ID Card for ID: {id_list[i]}")
 
     elif generate_mode == 'All Students':
         st.info("Generating ID cards for all students...")
@@ -288,7 +288,8 @@ def main():
 
         if generated_cards:
             st.success(f"Generated {len(generated_cards)} ID cards.")
-            st.image(generated_cards, width=300, caption="Generated ID Cards")
+            for i, card in enumerate(generated_cards):
+                st.image(card, caption=f"Generated ID Card for ID: {csv_data.iloc[i]['ID']}")
 
             # Create PDF of generated ID cards
             pdf_path = "generated_id_cards.pdf"
