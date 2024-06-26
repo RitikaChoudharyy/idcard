@@ -206,7 +206,7 @@ def main():
         csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
 
         st.sidebar.header("Browse Image Folder")
-        image_files = st.sidebar.file_uploader("Upload images", type=["jpg", "jpeg", "png"], accept_multiple_files=True, key='image_files')
+        image_files = st.sidebar.file_uploader("Upload images", type=["jpg"], accept_multiple_files=True, key='image_files')
 
         image_folder = "uploaded_images"
 
