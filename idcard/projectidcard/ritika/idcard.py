@@ -296,8 +296,13 @@ def main():
             create_pdf(generated_cards, pdf_path)
             st.success(f"PDF created successfully: [Download PDF]({pdf_path})")
 
-            # Display PDF in Streamlit
-            display_pdf(pdf_path)
+    # Download button for the generated PDF in the sidebar
+    st.sidebar.markdown('### Download Generated PDF')
+    if st.sidebar.button('Download PDF'):
+        with open(pdf_path, "rb") as f:
+            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+            href = f'<a href="data:application/pdf;base64,{base64_pdf}" download="generated_id_cards.pdf">Click here to download</a>'
+            st.sidebar.markdown(href, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
