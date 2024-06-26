@@ -219,13 +219,6 @@ def main():
 
             # Checkbox for modifying CSV in sidebar
             modified_csv = st.sidebar.checkbox('Modify CSV')
-    if csv_file is not None:
-    try:
-        csv_data = pd.read_csv(csv_file)
-        st.sidebar.success('CSV file successfully uploaded/updated.')
-
-        # Checkbox for modifying CSV in sidebar
-        modified_csv = st.sidebar.checkbox('Modify CSV')
         if modified_csv:
             st.subheader('Edit CSV')
             # Display editable DataFrame below the checkbox
