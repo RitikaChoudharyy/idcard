@@ -134,7 +134,6 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
-
 def create_pdf(images, pdf_path):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
@@ -211,18 +210,21 @@ def main():
     # File uploader in sidebar
     csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
 
-    # File uploader for image folder
-    image_folder = st.sidebar.file_uploader("Select the Image Folder", type=['zip'], key='image_uploader')
-    if image_folder:
-        import zipfile
-        import tempfile
+    # Main section for image folder uploader
+    col1, col2 = st.columns(2)
+    with col1:
+        st.header("Browse Image Folder")
+        image_folder = st.file_uploader("Select the Image Folder", type=['zip'], key='image_uploader')
+        if image_folder:
+            import zipfile
+            import tempfile
 
-        # Create a temporary directory
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with zipfile.ZipFile(image_folder, 'r') as zip_ref:
-                zip_ref.extractall(temp_dir)
-            # Update image_folder path to the temporary directory
-            image_folder = temp_dir
+            # Create a temporary directory
+            with tempfile.TemporaryDirectory() as temp_dir:
+                with zipfile.ZipFile(image_folder, 'r') as zip_ref:
+                    zip_ref.extractall(temp_dir)
+                # Update image_folder path to the temporary directory
+                image_folder = temp_dir
 
     if csv_file is not None:
         try:
