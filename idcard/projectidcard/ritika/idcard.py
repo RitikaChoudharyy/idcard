@@ -209,7 +209,7 @@ def main():
 
                     # Automatically save changes to CSV when data is edited
                     if 'csv_data_updated' in st.session_state and st.session_state.csv_data_updated:
-                        df_edited.to_csv(csv_file.name, index=False)
+                        df_edited.data.to_csv(csv_file.name, index=False)
                         st.success(f'CSV file "{csv_file.name}" updated successfully.')
                         st.session_state.csv_data_updated = False  # Reset the flag
 
@@ -228,6 +228,8 @@ def main():
                     if st.button('Save Changes'):
                         df_edited.data.to_csv(csv_file.name, index=False)
                         st.success(f'CSV file "{csv_file.name}" updated successfully.')
+        except Exception as e:
+            st.error(f"Error processing CSV file: {str(e)}")
 
     st.subheader('Generate ID Cards')
     generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
