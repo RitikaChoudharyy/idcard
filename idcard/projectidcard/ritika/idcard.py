@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import os
@@ -21,7 +20,8 @@ def preprocess_image(image_path):
         final_image = input_image.convert("RGB")
         return final_image
     except Exception as e:
-        st.error(f"Error opening image at image_path: {str(e)}")
+        st.error(f"Error opening image at {image_path}: {str(e)}")
+        logging.error(f"Error opening image at {image_path}: {str(e)}")
         return None
 
 # Function to generate ID card
@@ -34,11 +34,13 @@ def generate_card(data, template_path, image_folder, qr_folder):
     pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
     if not os.path.exists(pic_path):
         st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
+        logging.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
         return None
     
     qr_path = os.path.join(qr_folder, f"{pic_id}.png")
     if not os.path.exists(qr_path):
         st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
+        logging.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
         return None
 
     # Preprocess the image
@@ -50,6 +52,7 @@ def generate_card(data, template_path, image_folder, qr_folder):
         preprocessed_pic = preprocessed_pic.resize((144, 145))
     except Exception as e:
         st.error(f"Error resizing image for ID: {pic_id}. Error: {str(e)}")
+        logging.error(f"Error resizing image for ID: {pic_id}. Error: {str(e)}")
         return None
 
     try:
@@ -62,7 +65,7 @@ def generate_card(data, template_path, image_folder, qr_folder):
         draw = ImageDraw.Draw(template)
         
         try:
-            font_path = "C:\WINDOWS\FONTS\ARIAL.TTF"  # Update with your font path
+            font_path = "C:/WINDOWS/FONTS/ARIAL.TTF"  # Update with your font path
             name_font = ImageFont.truetype(font_path, size=18)
         except IOError:
             name_font = ImageFont.load_default()
@@ -94,6 +97,7 @@ def generate_card(data, template_path, image_folder, qr_folder):
     
     except Exception as e:
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
+        logging.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
 
 # Function to center-align text with wrapping
@@ -132,7 +136,7 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
-def create_pdf(images, pdf_path):
+def create_pdf(images, pdf_path, background_image=None):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
 
@@ -192,14 +196,13 @@ def display_pdf(pdf_path):
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
 
-
 def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
 
     # Update these paths according to your file locations
-    qr_folder ="idcard/projectidcard/ritika/ST_output_qr_codes"
-    image_folder="idcard/projectidcard/ritika/downloaded_images"
+    qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
+    image_folder = "idcard/projectidcard/ritika/downloaded_images"
     template_path = "idcard/projectidcard/ritika/ST.png"
     output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"  # Default download path
 
@@ -341,3 +344,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
