@@ -35,83 +35,78 @@ def preprocess_image(image_path):
         return None
 
 
-# Function to generate an ID card
+# Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
+    pic_id = str(data.get('ID', ''))
+    if not pic_id:
+        st.warning(f"Skipping record with missing ID: {data}")
+        return None
+    
+    pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
+    if not os.path.exists(pic_path):
+        st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
+        return None
+    
+    qr_path = os.path.join(qr_folder, f"{pic_id}.png")
+    if not os.path.exists(qr_path):
+        st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
+        return None
+
+    # Preprocess the image
+    preprocessed_pic = preprocess_image(pic_path)
+    if preprocessed_pic is None:
+        return None
+    
     try:
-        if not os.path.exists(template_path):
-            st.error(f"Template image not found at: {template_path}")
-            return None
-        
-        pic_id = str(data.get('ID', ''))
-        if not pic_id:
-            st.warning(f"Skipping record with missing ID: {data}")
-            return None
-        
-        pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
-        if not os.path.exists(pic_path):
-            st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
-            return None
-        
-        qr_path = os.path.join(qr_folder, f"{pic_id}.png")
-        if not os.path.exists(qr_path):
-            st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
-            return None
-
-        # Preprocess the image (example function, replace with your actual preprocessing)
-        preprocessed_pic = Image.open(pic_path)
         preprocessed_pic = preprocessed_pic.resize((144, 145))
+    except Exception as e:
+        st.error(f"Error resizing image for ID: {pic_id}. Error: {str(e)}")
+        return None
 
-        # Load the template image and QR code
+    try:
         template = Image.open(template_path)
         qr = Image.open(qr_path).resize((161, 159))
-
-        # Create a drawing context
-        draw = ImageDraw.Draw(template)
-
-        # Load Arial font from the specified path
-        font_path = "C:\\WINDOWS\\FONTS\\ARIAL.TTF"
-        if not os.path.exists(font_path):
-            st.error(f"Arial font file not found at: {font_path}")
-            return None
-        font = ImageFont.truetype(font_path, size=18)
-
-        # Paste the preprocessed image and QR code onto the template
+        
         template.paste(preprocessed_pic, (27, 113, 171, 258))
         template.paste(qr, (497, 109, 658, 268))
-
-        # Wrap text and draw on the template
+        
+        draw = ImageDraw.Draw(template)
+        
+        try:
+            font_path = "C:\\WINDOWS\\FONTS\\ARIAL.TTF"  # Update with your font path
+            name_font = ImageFont.truetype(font_path, size=18)
+        except IOError:
+            name_font = ImageFont.load_default()
+        
+        # Adjust text wrapping and positioning
         wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
-        draw.text((311, 121), wrapped_div, font=font, fill='black')
-        draw.text((200, 356), data['University '], font=font, fill='black')
-
+        draw.text((311, 121), wrapped_div, font=name_font, fill='black')
+        
         division_input = data['Division/Section']
         head_name = get_head_by_division(division_input)
-
         wrapped_supri = textwrap.fill(str(head_name), width=20).title()
-        draw.text((311, 170), wrapped_supri, font=font, fill='black')
-
-        draw.text((305, 219), data['Internship Start Date'], font=font, fill='black')
-        draw.text((303, 266), data['Internship End Date'], font=font, fill='black')
-        draw.text((300, 312), str(data['Mobile']), font=font, fill='black')
-        draw.text((621, 283), str(data['ID']), font=font, fill='black')
-
-        # Adjusted for name wrapping
-        name_font = ImageFont.truetype(font_path, size=18)
+        draw.text((311, 170), wrapped_supri, font=name_font, fill='black')
+        
+        university = data.get('University', 'Not Available')
+        draw.text((200, 356), university, font=name_font, fill='black')
+        
+        draw.text((305, 219), data['Internship Start Date'], font=name_font, fill='black')
+        draw.text((303, 266), data['Internship End Date'], font=name_font, fill='black')
+        draw.text((300, 312), str(data['Mobile']), font=name_font, fill='black')
+        draw.text((621, 283), str(data['ID']), font=name_font, fill='black')
+        
         wrapped_name = center_align_text_wrapper(data['Name'], width=22)
-
-        # Get the text size using ImageFont.textbbox()
         name_bbox = name_font.getbbox(wrapped_name)
         name_width = name_bbox[2] - name_bbox[0]
-
-        # Calculate the x-coordinate to center the text name
         center_x = ((198 - name_width) / 2)
         draw.text((center_x, 260), wrapped_name, font=name_font, fill='black')
-
+        
         return template
-
+    
     except Exception as e:
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
+
 
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
