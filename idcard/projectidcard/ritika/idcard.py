@@ -134,7 +134,6 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
-
 def create_pdf(images, pdf_path):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
@@ -184,7 +183,6 @@ def create_pdf(images, pdf_path):
         logging.error(f"Error creating PDF: {str(e)}")
         return None
 
-
 def display_pdf(pdf_path):
     try:
         with open(pdf_path, "rb") as f:
@@ -195,7 +193,7 @@ def display_pdf(pdf_path):
         st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
-        
+
 def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
@@ -286,17 +284,8 @@ def main():
                 for i, card in enumerate(generated_cards):
                     st.image(card, caption=f"Generated ID Card for ID: {id_list[i]}")
 
-                # Optional: Upload background logo for second column
-                background_logo = st.file_uploader("Upload Background Logo for Second Column", type=["jpg", "jpeg", "png"])
-
                 # Create PDF of generated ID cards
-                pdf_path = output_pdf_path_default
-                if background_logo:
-                    background_image = Image.open(background_logo)
-                    pdf_path = create_pdf(generated_cards, output_pdf_path_default, background_image)
-                else:
-                    pdf_path = create_pdf(generated_cards, output_pdf_path_default)
-
+                pdf_path = create_pdf(generated_cards, output_pdf_path_default)
                 if pdf_path:
                     st.success(f"PDF created successfully.")
                     # Display download button for the PDF
@@ -316,17 +305,8 @@ def main():
         if generated_cards:
             st.success(f"Generated {len(generated_cards)} ID cards.")
 
-            # Optional: Upload background logo for second column
-            background_logo = st.file_uploader("Upload Background Logo for Second Column", type=["jpg", "jpeg", "png"])
-
             # Create PDF of generated ID cards
-            pdf_path = output_pdf_path_default
-            if background_logo:
-                background_image = Image.open(background_logo)
-                pdf_path = create_pdf(generated_cards, output_pdf_path_default, background_image)
-            else:
-                pdf_path = create_pdf(generated_cards, output_pdf_path_default)
-
+            pdf_path = create_pdf(generated_cards, output_pdf_path_default)
             if pdf_path:
                 st.success(f"PDF created successfully.")
                 # Display download button for the PDF
