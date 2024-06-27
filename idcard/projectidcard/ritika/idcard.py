@@ -20,8 +20,6 @@ except ImportError as e:
     logging.error(f"Error importing 'rembg': {str(e)}")
     raise  # Re-raise the exception to halt execution and display the error
 
-# Continue with your script
-
 def preprocess_image(image_path):
     try:
         # Load the image
@@ -203,15 +201,7 @@ def create_pdf(images, pdf_path):
             # Draw the image on the canvas
             c.drawInlineImage(image, x, y, width=image_width, height=image_height)
 
-        # Save the PDF to the specified path
-        c.save()
-
-        return pdf_path  # Return the path where the PDF is saved
-
-    except Exception as e:
-        logging.error(f"Error creating PDF: {str(e)}")
-        return None
-
+       
 def display_pdf(pdf_path):
     try:
         with open(pdf_path, "rb") as f:
@@ -222,6 +212,7 @@ def display_pdf(pdf_path):
         st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
+
 
 def main():
     # Streamlit setup
