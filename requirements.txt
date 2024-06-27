@@ -87,3 +87,4 @@ validators
 virtualenv
 watchdog
 zipp
+rembg[gpu]
