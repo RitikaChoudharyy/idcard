@@ -212,6 +212,7 @@ def main():
         st.warning('Please enter the path to the images folder.')
         st.stop()
 
+    csv_data = None
     # Update main display based on CSV and images folder selection
     if csv_file is not None:
         try:
@@ -254,7 +255,12 @@ def main():
 
         except Exception as e:
             st.error(f"Error reading CSV file: {str(e)}")
-            logging.error(f"Error reading CSV file: {str(e)}")
+            return
+
+    # Ensure csv_data is available before proceeding
+    if csv_data is None:
+        st.error("Please upload a CSV file to proceed.")
+        return
 
     # Section to generate ID cards
     st.subheader('Generate ID Cards')
@@ -266,10 +272,13 @@ def main():
             if not id_input.isdigit():
                 st.warning('Invalid input. Please enter a valid numeric ID.')
             else:
-                selected_data = csv_data[csv_data['ID'] == int(id_input)].iloc[0]
-                generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
-                if generated_card:
-                    st.image(generated_card, caption=f"Generated ID Card for ID: {id_input}")
+                try:
+                    selected_data = csv_data[csv_data['ID'] == int(id_input)].iloc[0]
+                    generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
+                    if generated_card:
+                        st.image(generated_card, caption=f"Generated ID Card for ID: {id_input}")
+                except IndexError:
+                    st.warning('ID not found in the CSV file.')
 
     elif generate_mode == 'Comma-separated IDs':
         ids_input = st.text_input('Enter comma-separated IDs:')
@@ -278,10 +287,13 @@ def main():
             generated_cards = []
 
             for id_input in id_list:
-                selected_data = csv_data[csv_data['ID'] == id_input].iloc[0]
-                generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
-                if generated_card:
-                    generated_cards.append(generated_card)
+                try:
+                    selected_data = csv_data[csv_data['ID'] == id_input].iloc[0]
+                    generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
+                    if generated_card:
+                        generated_cards.append(generated_card)
+                except IndexError:
+                    st.warning(f'ID {id_input} not found in the CSV file.')
 
             if generated_cards:
                 st.success(f"Generated {len(generated_cards)} ID cards.")
