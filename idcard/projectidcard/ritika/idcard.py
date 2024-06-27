@@ -3,30 +3,11 @@ import pandas as pd
 import os
 from PIL import Image, ImageDraw, ImageFont
 import textwrap
-from fpdf import FPDF
-import base64
-from st_aggrid import AgGrid
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
-from reportlab.lib.units import inch, mm
-import numpy as np
-import logging
-import cv2
-from rembg import remove
-from PIL import Image
+import base64
 
-def preprocess_image(image_path):
-    input_image = Image.open(image_path)
-    output_image = remove(input_image)
-
-    # Convert the background to white
-    white_bg = Image.new("RGBA", output_image.size, "WHITE")
-    final_image = Image.alpha_composite(white_bg, output_image)
-
-    # Convert to RGB mode
-    final_image = final_image.convert("RGB")
-
-    return final_image
+# Function to preprocess the image
 def preprocess_image(image_path):
     try:
         # Load the image
@@ -44,7 +25,7 @@ def preprocess_image(image_path):
         # Crop the image from the calculated coordinates
         cropped_image = input_image.crop((left, top, right, bottom))
 
-        # Convert to RGB if necessary (might not be needed if already in RGB)
+        # Convert to RGB mode if necessary (might not be needed if already in RGB)
         final_image = cropped_image.convert("RGB")
 
         return final_image
@@ -53,68 +34,73 @@ def preprocess_image(image_path):
         st.error(f"Error processing image at {image_path}: {str(e)}")
         return None
 
+# Function to generate an ID card
 def generate_card(data, template_path, image_folder, qr_folder):
-    if not os.path.exists(template_path):
-        st.error("Template image not found at the specified location.")
-        return None
-    
-    pic_id = str(data.get('ID', ''))
-    if not pic_id:
-        st.warning(f"Skipping record with missing ID: {data}")
-        return None
-    
-    pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
-    if not os.path.exists(pic_path):
-        st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
-        return None
-    
-    qr_path = os.path.join(qr_folder, f"{pic_id}.png")
-    if not os.path.exists(qr_path):
-        st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
-        return None
+    try:
+        if not os.path.exists(template_path):
+            st.error("Template image not found at the specified location.")
+            return None
+        
+        pic_id = str(data.get('ID', ''))
+        if not pic_id:
+            st.warning(f"Skipping record with missing ID: {data}")
+            return None
+        
+        pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
+        if not os.path.exists(pic_path):
+            st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
+            return None
+        
+        qr_path = os.path.join(qr_folder, f"{pic_id}.png")
+        if not os.path.exists(qr_path):
+            st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
+            return None
 
-    # Preprocess the image
-    preprocessed_pic = preprocess_image(pic_path)
-    preprocessed_pic = preprocessed_pic.resize((144, 145))
+        # Preprocess the image
+        preprocessed_pic = preprocess_image(pic_path)
+        preprocessed_pic = preprocessed_pic.resize((144, 145))
 
-    template = Image.open(template_path)
-    qr = Image.open(qr_path).resize((161, 159))
-    
-    template.paste(preprocessed_pic, (27, 113, 171, 258))
-    template.paste(qr, (497, 109, 658, 268))
-    
-    draw = ImageDraw.Draw(template)
-    font = ImageFont.truetype("arial.ttf", size=18)  # Adjust the font path as needed
-    
-    wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
-    draw.text((311, 121), wrapped_div, font=font, fill='black')
-    draw.text((200, 356), data['University '], font=font, fill='black')
-    
-    division_input = data['Division/Section']
-    head_name = get_head_by_division(division_input)
-    
-    wrapped_supri = textwrap.fill(str(head_name), width=20).title()
-    draw.text((311, 170), wrapped_supri.title(), font=font, fill='black')
-    
-    draw.text((305, 219), data['Internship Start Date'], font=font, fill='black')
-    draw.text((303, 266), data['Internship End Date'], font=font, fill='black')
-    draw.text((300, 312), str(data['Mobile']), font=font, fill='black')
-    draw.text((621, 283), str(data['ID']), font=font, fill='black')
+        # Load the template image and QR code
+        template = Image.open(template_path)
+        qr = Image.open(qr_path).resize((161, 159))
+        
+        # Paste the preprocessed image and QR code onto the template
+        template.paste(preprocessed_pic, (27, 113, 171, 258))
+        template.paste(qr, (497, 109, 658, 268))
+        
+        # Draw text on the template
+        draw = ImageDraw.Draw(template)
+        font = ImageFont.truetype("arial.ttf", size=18)  # Adjust the font path as needed
+        
+        # Wrap text and draw on the template
+        wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
+        draw.text((311, 121), wrapped_div, font=font, fill='black')
+        draw.text((200, 356), data['University '], font=font, fill='black')
+        
+        division_input = data['Division/Section']
+        head_name = get_head_by_division(division_input)
+        
+        wrapped_supri = textwrap.fill(str(head_name), width=20).title()
+        draw.text((311, 170), wrapped_supri, font=font, fill='black')
+        
+        draw.text((305, 219), data['Internship Start Date'], font=font, fill='black')
+        draw.text((303, 266), data['Internship End Date'], font=font, fill='black')
+        draw.text((300, 312), str(data['Mobile']), font=font, fill='black')
+        draw.text((621, 283), str(data['ID']), font=font, fill='black')
 
-    # Adjusted for name wrapping
-    name_font = ImageFont.truetype("arial.ttf", size=18)  # Adjust the font path as needed
-    wrapped_name = center_align_text_wrapper(data['Name'], width=22)
-    
-    # Get the text size using ImageFont.textbbox()
-    name_bbox = name_font.getbbox(wrapped_name)
-    name_width = name_bbox[2] - name_bbox[0]
-    
-    # Calculate the x-coordinate to center the text name
-    center_x = ((198 - name_width) / 2 )
-    draw.text((center_x, 260), wrapped_name.title(), font=name_font, fill='black')
-    
-    return template
-    
+        # Adjusted for name wrapping
+        name_font = ImageFont.truetype("arial.ttf", size=18)  # Adjust the font path as needed
+        wrapped_name = center_align_text_wrapper(data['Name'], width=22)
+        
+        # Get the text size using ImageFont.textbbox()
+        name_bbox = name_font.getbbox(wrapped_name)
+        name_width = name_bbox[2] - name_bbox[0]
+        
+        # Calculate the x-coordinate to center the text name
+        center_x = ((198 - name_width) / 2 )
+        draw.text((center_x, 260), wrapped_name, font=name_font, fill='black')
+        
+        return template
 
     except Exception as e:
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
@@ -156,6 +142,7 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
+# Function to create a PDF with generated ID cards
 def create_pdf(images, pdf_path):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
@@ -203,6 +190,7 @@ def create_pdf(images, pdf_path):
         st.error(f"Error creating PDF: {str(e)}")
         return None
 
+# Function to display the PDF download link
 def display_pdf(pdf_path):
     try:
         with open(pdf_path, "rb") as f:
