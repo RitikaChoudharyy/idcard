@@ -15,6 +15,8 @@ import numpy as np  # Importing numpy as np
 
 # Initialize logging
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
+try:
+    from rembg import remove  # Importing remove function from rem
 
 def preprocess_image(image_path):
     try:
