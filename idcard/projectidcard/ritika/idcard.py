@@ -10,6 +10,20 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
 import logging
+from rembg import remove
+from PIL import Image
+def preprocess_image(image_path):
+    input_image = Image.open(image_path)
+    output_image = remove(input_image)
+
+    # Convert the background to white
+    white_bg = Image.new("RGBA", output_image.size, "WHITE")
+    final_image = Image.alpha_composite(white_bg, output_image)
+
+    # Convert to RGB mode
+    final_image = final_image.convert("RGB")
+
+    return final_image
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
