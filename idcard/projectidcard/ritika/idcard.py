@@ -10,7 +10,6 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
 import logging
-from face_crop_plus import FaceCropPlus  # Ensure this import is correct
 
 # Initialize logging
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
@@ -20,11 +19,14 @@ def preprocess_image(image_path):
         # Load the image
         input_image = Image.open(image_path)
 
-        # Initialize FaceCropPlus object
-        fcp = FaceCropPlus()
+        # Set the points for cropped image
+        left = 155
+        top = 65
+        right = 360
+        bottom = 270
 
-        # Remove background and crop to include only eyes
-        cropped_image = fcp.crop_image(input_image, crop_type='eyes', bg_color=(255, 255, 255))
+        # Cropped image of the above dimensions
+        cropped_image = input_image.crop((left, top, right, bottom))
 
         # Convert to RGB if necessary (might not be needed if already in RGB)
         final_image = cropped_image.convert("RGB")
@@ -34,6 +36,9 @@ def preprocess_image(image_path):
     except Exception as e:
         st.error(f"Error processing image at {image_path}: {str(e)}")
         return None
+
+# Rest of your code remains unchanged
+
 
 def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
