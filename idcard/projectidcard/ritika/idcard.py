@@ -20,11 +20,9 @@ def preprocess_image(image_path):
         final_image = input_image.convert("RGB")
         return final_image
     except Exception as e:
-        st.error(f"Error opening image at {image_path}: {str(e)}")
-        logging.error(f"Error opening image at {image_path}: {str(e)}")
+        st.error(f"Error opening image at image_path: {str(e)}")
         return None
 
-# Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
@@ -32,15 +30,17 @@ def generate_card(data, template_path, image_folder, qr_folder):
         return None
     
     pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
+    st.write(f"Looking for image at path: {pic_path}")
+    
     if not os.path.exists(pic_path):
         st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
-        logging.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
         return None
     
     qr_path = os.path.join(qr_folder, f"{pic_id}.png")
+    st.write(f"Looking for QR code at path: {qr_path}")
+    
     if not os.path.exists(qr_path):
         st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
-        logging.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
         return None
 
     # Preprocess the image
@@ -52,7 +52,6 @@ def generate_card(data, template_path, image_folder, qr_folder):
         preprocessed_pic = preprocessed_pic.resize((144, 145))
     except Exception as e:
         st.error(f"Error resizing image for ID: {pic_id}. Error: {str(e)}")
-        logging.error(f"Error resizing image for ID: {pic_id}. Error: {str(e)}")
         return None
 
     try:
@@ -65,7 +64,7 @@ def generate_card(data, template_path, image_folder, qr_folder):
         draw = ImageDraw.Draw(template)
         
         try:
-            font_path = "C:/WINDOWS/FONTS/ARIAL.TTF"  # Update with your font path
+            font_path = "C:\\WINDOWS\\FONTS\\ARIAL.TTF"  # Update with your font path
             name_font = ImageFont.truetype(font_path, size=18)
         except IOError:
             name_font = ImageFont.load_default()
@@ -97,7 +96,6 @@ def generate_card(data, template_path, image_folder, qr_folder):
     
     except Exception as e:
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
-        logging.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
 
 # Function to center-align text with wrapping
@@ -136,7 +134,8 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
-def create_pdf(images, pdf_path, background_image=None):
+
+def create_pdf(images, pdf_path):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
 
@@ -185,6 +184,7 @@ def create_pdf(images, pdf_path, background_image=None):
         logging.error(f"Error creating PDF: {str(e)}")
         return None
 
+
 def display_pdf(pdf_path):
     try:
         with open(pdf_path, "rb") as f:
@@ -195,16 +195,64 @@ def display_pdf(pdf_path):
         st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
-
+        
 def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
 
     # Update these paths according to your file locations
-    qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
-    image_folder = "idcard/projectidcard/ritika/downloaded_images"
     template_path = "idcard/projectidcard/ritika/ST.png"
+    image_folder = "idcard/projectidcard/ritika/downloaded_images"
+    qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
     output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"  # Default download path
+
+    # Sidebar for managing CSV
+    st.sidebar.header('Manage CSV')
+
+    # File uploader in sidebar
+    csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
+
+    if csv_file is not None:
+        try:
+            csv_data = pd.read_csv(csv_file)
+            st.sidebar.success('CSV file successfully uploaded/updated.')
+
+            # Checkbox for modifying CSV in sidebar
+            modified_csv = st.sidebar.checkbox('Modify CSV')
+            if modified_csv:
+                st.subheader('Edit CSV')
+                # Display editable DataFrame below the checkbox
+                with st.expander("View/Modify CSV"):
+                    grid_response = AgGrid(
+                        csv_data,
+                        editable=True,
+                        height=400,
+                        fit_columns_on_grid_load=True,
+                    )
+                    df_edited = grid_response['data']
+
+                    # Automatically save changes to CSV when data is edited
+                    if st.session_state.get('csv_data_updated', False):
+                        df_edited.to_csv(csv_file.name, index=False)
+                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
+                        st.session_state['csv_data_updated'] = False  # Reset the flag
+
+                    # Store initial state of csv_data in session state
+                    if 'csv_data' not in st.session_state:
+                        st.session_state['csv_data'] = csv_data
+
+                    # Check for changes in data and update session state if needed
+                    if not df_edited.equals(st.session_state['csv_data']):
+                        st.session_state['csv_data_updated'] = True
+                        st.session_state['csv_data'] = df_edited.copy()
+
+                    # Button to manually save changes
+                    if st.button('Save Changes'):
+                        df_edited.to_csv(csv_file.name, index=False)
+                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
+
+        except Exception as e:
+            st.error(f"Error reading CSV file: {str(e)}")
 
     # Section to generate ID cards
     st.subheader('Generate ID Cards')
@@ -238,17 +286,8 @@ def main():
                 for i, card in enumerate(generated_cards):
                     st.image(card, caption=f"Generated ID Card for ID: {id_list[i]}")
 
-                # Optional: Upload background logo for second column
-                background_logo = st.file_uploader("Upload Background Logo for Second Column", type=["jpg", "jpeg", "png"])
-
                 # Create PDF of generated ID cards
-                pdf_path = output_pdf_path_default
-                if background_logo:
-                    background_image = Image.open(background_logo)
-                    pdf_path = create_pdf(generated_cards, output_pdf_path_default, background_image)
-                else:
-                    pdf_path = create_pdf(generated_cards, output_pdf_path_default)
-
+                pdf_path = create_pdf(generated_cards, output_pdf_path_default)
                 if pdf_path:
                     st.success(f"PDF created successfully.")
                     # Display download button for the PDF
@@ -268,17 +307,8 @@ def main():
         if generated_cards:
             st.success(f"Generated {len(generated_cards)} ID cards.")
 
-            # Optional: Upload background logo for second column
-            background_logo = st.file_uploader("Upload Background Logo for Second Column", type=["jpg", "jpeg", "png"])
-
             # Create PDF of generated ID cards
-            pdf_path = output_pdf_path_default
-            if background_logo:
-                background_image = Image.open(background_logo)
-                pdf_path = create_pdf(generated_cards, output_pdf_path_default, background_image)
-            else:
-                pdf_path = create_pdf(generated_cards, output_pdf_path_default)
-
+            pdf_path = create_pdf(generated_cards, output_pdf_path_default)
             if pdf_path:
                 st.success(f"PDF created successfully.")
                 # Display download button for the PDF
@@ -286,6 +316,5 @@ def main():
             else:
                 st.error("Failed to create PDF.")
 
-if __name__ == "__main__":
+if _name_ == "_main_":
     main()
-
