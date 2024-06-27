@@ -31,20 +31,20 @@ def generate_card(data, template_path, image_folder, qr_folder):
     
     pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
     if not os.path.exists(pic_path):
-        st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
-        return None
-    
+            st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
+            logging.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
+            return None
+
     qr_path = os.path.join(qr_folder, f"{pic_id}.png")
     if not os.path.exists(qr_path):
-        st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
-        return None
-
-    try:
-        # Preprocess the image
-        preprocessed_pic = preprocess_image(pic_path)
-        if preprocessed_pic is None:
+            st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
+            logging.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
             return None
-        preprocessed_pic = preprocessed_pic.resize((144, 145))
+    try:
+      # Load the template image and QR code
+            template = Image.open(template_path)
+            qr = Image.open(qr_path).resize((161, 159))
+            preprocessed_pic = preprocessed_pic.resize((144, 145))
 
         # Load the template image and QR code
         template = Image.open(template_path)
