@@ -10,12 +10,10 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
 import logging
-from face_crop_plus import FaceCropPlus
+from face_crop_plus import FaceCropPlus  # Ensure this import is correct
 
-
+# Initialize logging
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
-
-from face_crop_plus import FaceCropPlus
 
 def preprocess_image(image_path):
     try:
@@ -111,7 +109,6 @@ def generate_card(data, template_path, image_folder, qr_folder):
     except Exception as e:
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
-
 
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
@@ -331,3 +328,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
