@@ -9,6 +9,7 @@ from st_aggrid import AgGrid
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
+import numpy as np
 import logging
 
 # Initialize logging
@@ -87,8 +88,8 @@ def generate_card(data, template_path, image_folder, qr_folder):
         template = Image.open(template_path)
         qr = Image.open(qr_path).resize((161, 159))
 
-        template.paste(preprocessed_pic, (27, 113, 171, 258))
-        template.paste(qr, (497, 109, 658, 268))
+        template.paste(preprocessed_pic, (27, 113, 171, 258), preprocessed_pic)
+        template.paste(qr, (497, 109, 658, 268), qr)
 
         draw = ImageDraw.Draw(template)
 
@@ -182,7 +183,7 @@ def create_pdf(images, pdf_path):
 
         for i, image in enumerate(images):
             col = i % grid_width
-            row = i // grid_width
+            row = i // grid_height
 
             # Check if the current page is filled and there are more images to be processed
             if i > 0 and i % (grid_width * grid_height) == 0:
@@ -201,7 +202,13 @@ def create_pdf(images, pdf_path):
             # Draw the image on the canvas
             c.drawInlineImage(image, x, y, width=image_width, height=image_height)
 
-       
+        c.save()
+        return pdf_path
+
+    except Exception as e:
+        st.error(f"Error creating PDF: {str(e)}")
+        return None
+
 def display_pdf(pdf_path):
     try:
         with open(pdf_path, "rb") as f:
@@ -212,7 +219,6 @@ def display_pdf(pdf_path):
         st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
-
 
 def main():
     # Streamlit setup
@@ -336,4 +342,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
