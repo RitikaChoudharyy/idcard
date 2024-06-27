@@ -198,8 +198,8 @@ def main():
     st.title("Automatic ID Card Generation")
 
     # Update these paths according to your file locations
-    qr_folder =""
-    image_folder=""
+    qr_folder ="idcard/projectidcard/ritika/ST_output_qr_codes"
+    image_folder="idcard/projectidcard/ritika/downloaded_images"
     template_path = "idcard/projectidcard/ritika/ST.png"
     output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"  # Default download path
 
