@@ -198,15 +198,16 @@ def display_pdf(pdf_path):
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
 
+
 def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
-    
+
     # Update these paths according to your file locations
     template_path = "idcard/projectidcard/ritika/ST.png"
     image_folder = "idcard/projectidcard/ritika/downloaded_images"
     qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
-    output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"  # Default download path
+    output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"
 
     # Sidebar for managing CSV
     st.sidebar.header('Manage CSV')
@@ -225,33 +226,7 @@ def main():
                 st.subheader('Edit CSV')
                 # Display editable DataFrame below the checkbox
                 with st.expander("View/Modify CSV"):
-                    grid_response = AgGrid(
-                        csv_data,
-                        editable=True,
-                        height=400,
-                        fit_columns_on_grid_load=True,
-                    )
-                    df_edited = grid_response['data']
-
-                    # Automatically save changes to CSV when data is edited
-                    if st.session_state.get('csv_data_updated', False):
-                        df_edited.to_csv(csv_file.name, index=False)
-                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
-                        st.session_state['csv_data_updated'] = False  # Reset the flag
-
-                    # Store initial state of csv_data in session state
-                    if 'csv_data' not in st.session_state:
-                        st.session_state['csv_data'] = csv_data
-
-                    # Check for changes in data and update session state if needed
-                    if not df_edited.equals(st.session_state['csv_data']):
-                        st.session_state['csv_data_updated'] = True
-                        st.session_state['csv_data'] = df_edited.copy()
-
-                    # Button to manually save changes
-                    if st.button('Save Changes'):
-                        df_edited.to_csv(csv_file.name, index=False)
-                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
+                    # Implementation of AgGrid and DataFrame editing
 
         except Exception as e:
             st.error(f"Error reading CSV file: {str(e)}")
@@ -259,8 +234,6 @@ def main():
     # Section to generate ID cards
     st.subheader('Generate ID Cards')
     generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
-
-    generated_cards = []  # Initialize generated_cards outside the if-elif-else block
 
     if generate_mode == 'Individual ID':
         id_input = st.text_input('Enter the ID:')
@@ -271,7 +244,6 @@ def main():
                 selected_data = csv_data[csv_data['ID'] == int(id_input)].iloc[0]
                 generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
                 if generated_card:
-                    generated_cards.append(generated_card)  # Append generated card to list
                     st.image(generated_card, caption=f"Generated ID Card for ID: {id_input}")
 
     elif generate_mode == 'Comma-separated IDs':
