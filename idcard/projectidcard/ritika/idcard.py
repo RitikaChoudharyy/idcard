@@ -10,6 +10,8 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
 import logging
+from rembg import remove  # Importing remove function from rembg
+import numpy as np  # Importing numpy as np
 
 # Initialize logging
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
@@ -39,9 +41,6 @@ def preprocess_image(image_path):
     except Exception as e:
         st.error(f"Error processing image at {image_path}: {str(e)}")
         return None
-
-# Rest of your code remains unchanged
-
 
 def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
@@ -121,6 +120,7 @@ def generate_card(data, template_path, image_folder, qr_folder):
     except Exception as e:
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
+
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
     words = text.split()
