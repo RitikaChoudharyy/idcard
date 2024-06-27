@@ -3,12 +3,10 @@ import pandas as pd
 import os
 from PIL import Image, ImageDraw, ImageFont
 import textwrap
-from fpdf import FPDF
-import base64
-from st_aggrid import AgGrid
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
+import base64
 import logging
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
@@ -20,7 +18,8 @@ def preprocess_image(image_path):
         final_image = input_image.convert("RGB")
         return final_image
     except Exception as e:
-        st.error(f"Error opening image at image_path: {str(e)}")
+        st.error(f"Error opening image at {image_path}: {str(e)}")
+        logging.error(f"Error opening image at {image_path}: {str(e)}")
         return None
 
 def generate_card(data, template_path, image_folder, qr_folder):
@@ -31,24 +30,24 @@ def generate_card(data, template_path, image_folder, qr_folder):
     
     pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
     if not os.path.exists(pic_path):
-            st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
-            logging.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
-            return None
+        st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
+        logging.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
+        return None
 
     qr_path = os.path.join(qr_folder, f"{pic_id}.png")
     if not os.path.exists(qr_path):
-            st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
-            logging.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
-            return None
-    try:
-      # Load the template image and QR code
-            template = Image.open(template_path)
-            qr = Image.open(qr_path).resize((161, 159))
-            preprocessed_pic = preprocessed_pic.resize((144, 145))
+        st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
+        logging.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
+        return None
 
+    try:
         # Load the template image and QR code
         template = Image.open(template_path)
         qr = Image.open(qr_path).resize((161, 159))
+        preprocessed_pic = preprocess_image(pic_path)
+        if preprocessed_pic is None:
+            return None
+        preprocessed_pic = preprocessed_pic.resize((144, 145))
 
         # Paste the preprocessed image and QR code onto the template
         template.paste(preprocessed_pic, (27, 113, 171, 258))
@@ -198,11 +197,12 @@ def display_pdf(pdf_path):
         st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
+
 def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
 
-# Update these paths according to your file locations
+    # Update these paths according to your file locations
     template_path = "idcard/projectidcard/ritika/ST.png"
     image_folder = "idcard/projectidcard/ritika/downloaded_images"
     qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
@@ -225,7 +225,7 @@ def main():
                 st.subheader('Edit CSV')
                 # Display editable DataFrame below the checkbox
                 with st.expander("View/Modify CSV"):
-                    grid_response = AgGrid(
+                        grid_response = AgGrid(
                         csv_data,
                         editable=True,
                         height=400,
@@ -252,9 +252,6 @@ def main():
                     if st.button('Save Changes'):
                         df_edited.to_csv(csv_file.name, index=False)
                         st.success(f'CSV file "{csv_file.name}" updated successfully.')
-
-        except Exception as e:
-            st.error(f"Error reading CSV file: {str(e)}")
 
     # Section to generate ID cards
     st.subheader('Generate ID Cards')
