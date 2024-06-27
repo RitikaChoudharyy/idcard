@@ -23,7 +23,6 @@ def preprocess_image(image_path):
         st.error(f"Error opening image at image_path: {str(e)}")
         return None
 
-# Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
@@ -40,61 +39,64 @@ def generate_card(data, template_path, image_folder, qr_folder):
         st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
         return None
 
-    # Preprocess the image
-    preprocessed_pic = preprocess_image(pic_path)
-    if preprocessed_pic is None:
-        return None
-    
     try:
+        # Preprocess the image
+        preprocessed_pic = preprocess_image(pic_path)
+        if preprocessed_pic is None:
+            return None
         preprocessed_pic = preprocessed_pic.resize((144, 145))
-    except Exception as e:
-        st.error(f"Error resizing image for ID: {pic_id}. Error: {str(e)}")
-        return None
 
-    try:
+        # Load the template image and QR code
         template = Image.open(template_path)
         qr = Image.open(qr_path).resize((161, 159))
-        
+
+        # Paste the preprocessed image and QR code onto the template
         template.paste(preprocessed_pic, (27, 113, 171, 258))
         template.paste(qr, (497, 109, 658, 268))
-        
+
         draw = ImageDraw.Draw(template)
-        
+
+        # Use a try-except block for font loading
         try:
             font_path = "C:\\WINDOWS\\FONTS\\ARIAL.TTF"  # Update with your font path
             name_font = ImageFont.truetype(font_path, size=18)
         except IOError as e:
             logging.error(f"Error loading Arial font: {str(e)}")
-            st.error(f"Error loading Arial font for ID: {pic_id}. Check font path and file availability.")
-            return None
-        
+            name_font = ImageFont.load_default()
+
         # Adjust text wrapping and positioning
         wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
         draw.text((311, 121), wrapped_div, font=name_font, fill='black')
-        
+
         division_input = data['Division/Section']
         head_name = get_head_by_division(division_input)
         wrapped_supri = textwrap.fill(str(head_name), width=20).title()
         draw.text((311, 170), wrapped_supri, font=name_font, fill='black')
-        
+
         university = data.get('University', 'Not Available')
         draw.text((200, 356), university, font=name_font, fill='black')
-        
+
         draw.text((305, 219), data['Internship Start Date'], font=name_font, fill='black')
         draw.text((303, 266), data['Internship End Date'], font=name_font, fill='black')
         draw.text((300, 312), str(data['Mobile']), font=name_font, fill='black')
         draw.text((621, 283), str(data['ID']), font=name_font, fill='black')
-        
+
         wrapped_name = center_align_text_wrapper(data['Name'], width=22)
         name_bbox = name_font.getbbox(wrapped_name)
         name_width = name_bbox[2] - name_bbox[0]
         center_x = ((198 - name_width) / 2)
         draw.text((center_x, 260), wrapped_name, font=name_font, fill='black')
-        
+
         return template
-    
+
+    except FileNotFoundError as e:
+        st.error(f"Error generating card for ID: {pic_id}. File not found: {str(e)}")
+        logging.error(f"FileNotFoundError in generate_card for ID {pic_id}: {str(e)}")
+        return None
+
     except Exception as e:
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
+        logging.error(f"Error generating card for ID {pic_id}: {str(e)}")
         return None
 
 # Function to center-align text with wrapping
