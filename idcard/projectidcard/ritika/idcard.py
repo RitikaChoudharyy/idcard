@@ -202,7 +202,7 @@ def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
 
-    # Update these paths according to your file locations
+# Update these paths according to your file locations
     template_path = "idcard/projectidcard/ritika/ST.png"
     image_folder = "idcard/projectidcard/ritika/downloaded_images"
     qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
