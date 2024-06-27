@@ -254,7 +254,6 @@ def main():
         except Exception as e:
             st.error(f"Error reading CSV file: {str(e)}")
 
-    # Section to generate ID cards
     st.subheader('Generate ID Cards')
     generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
 
@@ -268,53 +267,41 @@ def main():
                 generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
                 if generated_card:
                     st.image(generated_card, caption=f"Generated ID Card for ID: {id_input}")
+                    generated_cards.append(generated_card)  # Append generated card to list
 
     elif generate_mode == 'Comma-separated IDs':
         ids_input = st.text_input('Enter comma-separated IDs:')
         if st.button('Generate ID Cards'):
             id_list = [int(id.strip()) for id in ids_input.split(',') if id.strip().isdigit()]
-            generated_cards = []
-
             for id_input in id_list:
                 selected_data = csv_data[csv_data['ID'] == id_input].iloc[0]
                 generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
                 if generated_card:
-                    generated_cards.append(generated_card)
-
-            if generated_cards:
-                st.success(f"Generated {len(generated_cards)} ID cards.")
-                for i, card in enumerate(generated_cards):
-                    st.image(card, caption=f"Generated ID Card for ID: {id_list[i]}")
-
-                # Create PDF of generated ID cards
-                pdf_path = create_pdf(generated_cards, output_pdf_path_default)
-                if pdf_path:
-                    st.success(f"PDF created successfully.")
-                    # Display download button for the PDF
-                    display_pdf(pdf_path)
-                else:
-                    st.error("Failed to create PDF.")
+                    st.image(generated_card, caption=f"Generated ID Card for ID: {id_input}")
+                    generated_cards.append(generated_card)  # Append generated card to list
 
     elif generate_mode == 'All Students':
         st.info("Generating ID cards for all students...")
-        generated_cards = []
-
         for index, data in csv_data.iterrows():
             generated_card = generate_card(data, template_path, image_folder, qr_folder)
             if generated_card:
-                generated_cards.append(generated_card)
+                st.image(generated_card, caption=f"Generated ID Card for ID: {data['ID']}")
+                generated_cards.append(generated_card)  # Append generated card to list
 
-        if generated_cards:
-            st.success(f"Generated {len(generated_cards)} ID cards.")
+    # Check if any cards were generated
+    if generated_cards:
+        st.success(f"Generated {len(generated_cards)} ID cards.")
 
-            # Create PDF of generated ID cards
-            pdf_path = create_pdf(generated_cards, output_pdf_path_default)
-            if pdf_path:
-                st.success(f"PDF created successfully.")
-                # Display download button for the PDF
-                display_pdf(pdf_path)
-            else:
-                st.error("Failed to create PDF.")
+        # Create PDF of generated ID cards
+        pdf_path = create_pdf(generated_cards, output_pdf_path_default)
+        if pdf_path:
+            st.success(f"PDF created successfully.")
+            # Display download button for the PDF
+            display_pdf(pdf_path)
+        else:
+            st.error("Failed to create PDF.")
+    else:
+        st.warning("No ID cards were generated.")
 
 if __name__ == "__main__":
     main()
