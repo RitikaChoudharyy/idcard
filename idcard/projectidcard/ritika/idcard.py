@@ -201,7 +201,7 @@ def display_pdf(pdf_path):
 def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
-
+    
     # Update these paths according to your file locations
     template_path = "idcard/projectidcard/ritika/ST.png"
     image_folder = "idcard/projectidcard/ritika/downloaded_images"
@@ -225,7 +225,7 @@ def main():
                 st.subheader('Edit CSV')
                 # Display editable DataFrame below the checkbox
                 with st.expander("View/Modify CSV"):
-                        grid_response = AgGrid(
+                    grid_response = AgGrid(
                         csv_data,
                         editable=True,
                         height=400,
@@ -253,9 +253,14 @@ def main():
                         df_edited.to_csv(csv_file.name, index=False)
                         st.success(f'CSV file "{csv_file.name}" updated successfully.')
 
+        except Exception as e:
+            st.error(f"Error reading CSV file: {str(e)}")
+
     # Section to generate ID cards
     st.subheader('Generate ID Cards')
     generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
+
+    generated_cards = []  # Initialize generated_cards outside the if-elif-else block
 
     if generate_mode == 'Individual ID':
         id_input = st.text_input('Enter the ID:')
@@ -266,19 +271,19 @@ def main():
                 selected_data = csv_data[csv_data['ID'] == int(id_input)].iloc[0]
                 generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
                 if generated_card:
+                    generated_cards.append(generated_card)  # Append generated card to list
                     st.image(generated_card, caption=f"Generated ID Card for ID: {id_input}")
 
     elif generate_mode == 'Comma-separated IDs':
         ids_input = st.text_input('Enter comma-separated IDs:')
         if st.button('Generate ID Cards'):
             id_list = [int(id.strip()) for id in ids_input.split(',') if id.strip().isdigit()]
-            generated_cards = []
 
             for id_input in id_list:
                 selected_data = csv_data[csv_data['ID'] == id_input].iloc[0]
                 generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
                 if generated_card:
-                    generated_cards.append(generated_card)
+                    generated_cards.append(generated_card)  # Append generated card to list
 
             if generated_cards:
                 st.success(f"Generated {len(generated_cards)} ID cards.")
@@ -296,12 +301,11 @@ def main():
 
     elif generate_mode == 'All Students':
         st.info("Generating ID cards for all students...")
-        generated_cards = []
 
         for index, data in csv_data.iterrows():
             generated_card = generate_card(data, template_path, image_folder, qr_folder)
             if generated_card:
-                generated_cards.append(generated_card)
+                generated_cards.append(generated_card)  # Append generated card to list
 
         if generated_cards:
             st.success(f"Generated {len(generated_cards)} ID cards.")
