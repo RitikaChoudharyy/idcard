@@ -34,6 +34,8 @@ def preprocess_image(image_path):
         st.error(f"Error processing image at {image_path}: {str(e)}")
         return None
 
+
+# Function to generate an ID card
 def generate_card(data, template_path, image_folder, qr_folder):
     try:
         if not os.path.exists(template_path):
@@ -63,17 +65,20 @@ def generate_card(data, template_path, image_folder, qr_folder):
         template = Image.open(template_path)
         qr = Image.open(qr_path).resize((161, 159))
 
+        # Create a drawing context
+        draw = ImageDraw.Draw(template)
+
+        # Load Arial font from the specified path
+        font_path = "C:\\WINDOWS\\FONTS\\ARIAL.TTF"
+        if not os.path.exists(font_path):
+            st.error(f"Arial font file not found at: {font_path}")
+            return None
+        font = ImageFont.truetype(font_path, size=18)
+
         # Paste the preprocessed image and QR code onto the template
         template.paste(preprocessed_pic, (27, 113, 171, 258))
         template.paste(qr, (497, 109, 658, 268))
 
-        # Create a drawing context
-        draw = ImageDraw.Draw(template)
-        
-        # Load Arial font from the specified path
-        font_path = "C:\\WINDOWS\\FONTS\\ARIAL.TTF"
-        font = ImageFont.truetype(font_path, size=18)
-        
         # Wrap text and draw on the template
         wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
         draw.text((311, 121), wrapped_div, font=font, fill='black')
@@ -107,7 +112,6 @@ def generate_card(data, template_path, image_folder, qr_folder):
     except Exception as e:
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
-
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
     words = text.split()
