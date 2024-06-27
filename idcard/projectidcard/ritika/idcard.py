@@ -10,13 +10,17 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
 import logging
-from rembg import remove  # Importing remove function from rembg
-import numpy as np  # Importing numpy as np
 
 # Initialize logging
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
+
 try:
-    from rembg import remove  # Importing remove function from rem
+    from rembg import remove  # Importing remove function from rembg
+except ImportError as e:
+    logging.error(f"Error importing 'rembg': {str(e)}")
+    raise  # Re-raise the exception to halt execution and display the error
+
+# Continue with your script
 
 def preprocess_image(image_path):
     try:
