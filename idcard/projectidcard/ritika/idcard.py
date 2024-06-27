@@ -70,6 +70,9 @@ def generate_card(data, template_path, image_folder, qr_folder):
         
         # Draw text on the template
         draw = ImageDraw.Draw(template)
+        font_path = "C:\\WINDOWS\\FONTS\\ARIAL.TTF" 
+        font = ImageFont.truetype(font_path, size=18)
+
         font = ImageFont.truetype("arial.ttf", size=18)  # Adjust the font path as needed
         
         # Wrap text and draw on the template
