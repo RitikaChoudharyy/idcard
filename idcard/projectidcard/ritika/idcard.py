@@ -18,14 +18,17 @@ def preprocess_image(image_path):
     try:
         # Load the image
         input_image = Image.open(image_path)
-
-        # Set the points for cropped image
-        left = 155
-        top = 65
-        right = 360
-        bottom = 270
-
-        # Cropped image of the above dimensions
+        
+        # Get the dimensions of the original image
+        width, height = input_image.size
+        
+        # Calculate the coordinates for center cropping
+        left = (width - min(width, height)) // 2
+        top = (height - min(width, height)) // 2
+        right = left + min(width, height)
+        bottom = top + min(width, height)
+        
+        # Crop the image from the calculated coordinates
         cropped_image = input_image.crop((left, top, right, bottom))
 
         # Convert to RGB if necessary (might not be needed if already in RGB)
@@ -36,6 +39,9 @@ def preprocess_image(image_path):
     except Exception as e:
         st.error(f"Error processing image at {image_path}: {str(e)}")
         return None
+
+# Rest of your code remains unchanged
+
 
 # Rest of your code remains unchanged
 
