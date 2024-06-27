@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import os
@@ -315,5 +316,6 @@ def main():
                 display_pdf(pdf_path)
             else:
                 st.error("Failed to create PDF.")
+
 if __name__ == "__main__":
     main()
