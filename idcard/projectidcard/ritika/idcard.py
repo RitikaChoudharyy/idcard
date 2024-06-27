@@ -39,7 +39,7 @@ def preprocess_image(image_path):
 def generate_card(data, template_path, image_folder, qr_folder):
     try:
         if not os.path.exists(template_path):
-            st.error("Template image not found at the specified location.")
+            st.error(f"Template image not found at: {template_path}")
             return None
         
         pic_id = str(data.get('ID', ''))
@@ -57,8 +57,8 @@ def generate_card(data, template_path, image_folder, qr_folder):
             st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
             return None
 
-        # Preprocess the image
-        preprocessed_pic = preprocess_image(pic_path)
+        # Preprocess the image (example function, replace with your actual preprocessing)
+        preprocessed_pic = Image.open(pic_path)
         preprocessed_pic = preprocessed_pic.resize((144, 145))
 
         # Load the template image and QR code
@@ -112,6 +112,7 @@ def generate_card(data, template_path, image_folder, qr_folder):
     except Exception as e:
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
+
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
     words = text.split()
