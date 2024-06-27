@@ -11,16 +11,22 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
 import numpy as np
 import logging
+import cv2
+from rembg import remove
+from PIL import Image
 
-# Initialize logging
-logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
+def preprocess_image(image_path):
+    input_image = Image.open(image_path)
+    output_image = remove(input_image)
 
-try:
-    from rembg import remove  # Importing remove function from rembg
-except ImportError as e:
-    logging.error(f"Error importing 'rembg': {str(e)}")
-    raise  # Re-raise the exception to halt execution and display the error
+    # Convert the background to white
+    white_bg = Image.new("RGBA", output_image.size, "WHITE")
+    final_image = Image.alpha_composite(white_bg, output_image)
 
+    # Convert to RGB mode
+    final_image = final_image.convert("RGB")
+
+    return final_image
 def preprocess_image(image_path):
     try:
         # Load the image
@@ -48,79 +54,67 @@ def preprocess_image(image_path):
         return None
 
 def generate_card(data, template_path, image_folder, qr_folder):
+    if not os.path.exists(template_path):
+        st.error("Template image not found at the specified location.")
+        return None
+    
     pic_id = str(data.get('ID', ''))
     if not pic_id:
         st.warning(f"Skipping record with missing ID: {data}")
         return None
-
+    
     pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
-    st.write(f"Looking for image at path: {pic_path}")
-
     if not os.path.exists(pic_path):
         st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
         return None
-
+    
     qr_path = os.path.join(qr_folder, f"{pic_id}.png")
-    st.write(f"Looking for QR code at path: {qr_path}")
-
     if not os.path.exists(qr_path):
         st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
         return None
 
     # Preprocess the image
     preprocessed_pic = preprocess_image(pic_path)
-    if preprocessed_pic is None:
-        return None
+    preprocessed_pic = preprocessed_pic.resize((144, 145))
 
-    try:
-        preprocessed_pic = preprocessed_pic.resize((144, 145))
+    template = Image.open(template_path)
+    qr = Image.open(qr_path).resize((161, 159))
+    
+    template.paste(preprocessed_pic, (27, 113, 171, 258))
+    template.paste(qr, (497, 109, 658, 268))
+    
+    draw = ImageDraw.Draw(template)
+    font = ImageFont.truetype("arial.ttf", size=18)  # Adjust the font path as needed
+    
+    wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
+    draw.text((311, 121), wrapped_div, font=font, fill='black')
+    draw.text((200, 356), data['University '], font=font, fill='black')
+    
+    division_input = data['Division/Section']
+    head_name = get_head_by_division(division_input)
+    
+    wrapped_supri = textwrap.fill(str(head_name), width=20).title()
+    draw.text((311, 170), wrapped_supri.title(), font=font, fill='black')
+    
+    draw.text((305, 219), data['Internship Start Date'], font=font, fill='black')
+    draw.text((303, 266), data['Internship End Date'], font=font, fill='black')
+    draw.text((300, 312), str(data['Mobile']), font=font, fill='black')
+    draw.text((621, 283), str(data['ID']), font=font, fill='black')
 
-        # Remove background using rembg
-        img_np = np.array(preprocessed_pic)
-        img_with_alpha = remove(img_np)
-        preprocessed_pic = Image.fromarray(img_with_alpha)
-
-    except Exception as e:
-        st.error(f"Error processing image for ID: {pic_id}. Error: {str(e)}")
-        return None
-
-    try:
-        template = Image.open(template_path)
-        qr = Image.open(qr_path).resize((161, 159))
-
-        template.paste(preprocessed_pic, (27, 113, 171, 258), preprocessed_pic)
-        template.paste(qr, (497, 109, 658, 268), qr)
-
-        draw = ImageDraw.Draw(template)
-
-        # Font setup and text drawing
-        font_path = "C:\\WINDOWS\\FONTS\\ARIAL.TTF"  # Update with your font path
-        name_font = ImageFont.truetype(font_path, size=18)
-
-        # Adjust text wrapping and positioning
-        wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
-        draw.text((311, 121), wrapped_div, font=name_font, fill='black')
-
-        division_input = data['Division/Section']
-        head_name = get_head_by_division(division_input)
-        wrapped_supri = textwrap.fill(str(head_name), width=20).title()
-        draw.text((311, 170), wrapped_supri, font=name_font, fill='black')
-
-        university = data.get('University', 'Not Available')
-        draw.text((200, 356), university, font=name_font, fill='black')
-
-        draw.text((305, 219), data['Internship Start Date'], font=name_font, fill='black')
-        draw.text((303, 266), data['Internship End Date'], font=name_font, fill='black')
-        draw.text((300, 312), str(data['Mobile']), font=name_font, fill='black')
-        draw.text((621, 283), str(data['ID']), font=name_font, fill='black')
-
-        wrapped_name = center_align_text_wrapper(data['Name'], width=22)
-        name_bbox = name_font.getbbox(wrapped_name)
-        name_width = name_bbox[2] - name_bbox[0]
-        center_x = ((198 - name_width) / 2)
-        draw.text((center_x, 260), wrapped_name, font=name_font, fill='black')
-
-        return template
+    # Adjusted for name wrapping
+    name_font = ImageFont.truetype("arial.ttf", size=18)  # Adjust the font path as needed
+    wrapped_name = center_align_text_wrapper(data['Name'], width=22)
+    
+    # Get the text size using ImageFont.textbbox()
+    name_bbox = name_font.getbbox(wrapped_name)
+    name_width = name_bbox[2] - name_bbox[0]
+    
+    # Calculate the x-coordinate to center the text name
+    center_x = ((198 - name_width) / 2 )
+    draw.text((center_x, 260), wrapped_name.title(), font=name_font, fill='black')
+    
+    return template
+    
 
     except Exception as e:
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
