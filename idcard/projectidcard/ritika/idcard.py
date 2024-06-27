@@ -292,7 +292,7 @@ def main():
                 if pdf_path:
                     st.success(f"PDF created successfully.")
                     # Display download button for the PDF
-                    display_pdf(pdf_path)
+                    st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
                 else:
                     st.error("Failed to create PDF.")
 
@@ -313,9 +313,16 @@ def main():
             if pdf_path:
                 st.success(f"PDF created successfully.")
                 # Display download button for the PDF
-                display_pdf(pdf_path)
+                st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
             else:
                 st.error("Failed to create PDF.")
 
+def get_binary_file_downloader_html(bin_file, file_label='File'):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    bin_str = base64.b64encode(data).decode()
+    return f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'
+
 if __name__ == "__main__":
     main()
+
