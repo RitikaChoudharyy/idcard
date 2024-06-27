@@ -10,6 +10,8 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
 import logging
+from face_crop_plus import FaceCropPlus
+
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
