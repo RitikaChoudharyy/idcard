@@ -43,9 +43,6 @@ def preprocess_image(image_path):
 # Rest of your code remains unchanged
 
 
-# Rest of your code remains unchanged
-
-
 def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
@@ -73,8 +70,14 @@ def generate_card(data, template_path, image_folder, qr_folder):
 
     try:
         preprocessed_pic = preprocessed_pic.resize((144, 145))
+
+        # Remove background using rembg
+        img_np = np.array(preprocessed_pic)
+        img_with_alpha = remove(img_np)
+        preprocessed_pic = Image.fromarray(img_with_alpha)
+
     except Exception as e:
-        st.error(f"Error resizing image for ID: {pic_id}. Error: {str(e)}")
+        st.error(f"Error processing image for ID: {pic_id}. Error: {str(e)}")
         return None
 
     try:
@@ -86,11 +89,9 @@ def generate_card(data, template_path, image_folder, qr_folder):
 
         draw = ImageDraw.Draw(template)
 
-        try:
-            font_path = "C:\\WINDOWS\\FONTS\\ARIAL.TTF"  # Update with your font path
-            name_font = ImageFont.truetype(font_path, size=18)
-        except IOError:
-            name_font = ImageFont.load_default()
+        # Font setup and text drawing
+        font_path = "C:\\WINDOWS\\FONTS\\ARIAL.TTF"  # Update with your font path
+        name_font = ImageFont.truetype(font_path, size=18)
 
         # Adjust text wrapping and positioning
         wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
@@ -120,7 +121,6 @@ def generate_card(data, template_path, image_folder, qr_folder):
     except Exception as e:
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
-
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
     words = text.split()
