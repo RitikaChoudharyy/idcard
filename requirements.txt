@@ -21,7 +21,6 @@ humanfriendly
 idna
 imageio
 importlib_metadata
-intel-openmp0
 Jinja2
 jsonschema
 jsonschema-specifications
@@ -88,12 +87,5 @@ virtualenv
 watchdog
 zipp
 rembg[gpu]
-streamlit==1.11.1
-pandas==1.3.3
-Pillow==8.3.2
-fpdf==1.7.2
-numpy==1.21.2
-reportlab==3.5.68
-st-aggrid==0.2.3
 rembg
 
