@@ -3,37 +3,25 @@ import pandas as pd
 import os
 from PIL import Image, ImageDraw, ImageFont
 import textwrap
+from fpdf import FPDF
+import base64
+from st_aggrid import AgGrid
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
-import base64
+from reportlab.lib.units import inch, mm
+import logging
 
-# Function to preprocess the image
+logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
+
+# Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
     try:
-        # Load the image
         input_image = Image.open(image_path)
-        
-        # Get the dimensions of the original image
-        width, height = input_image.size
-        
-        # Calculate the coordinates for center cropping
-        left = (width - min(width, height)) // 2
-        top = (height - min(width, height)) // 2
-        right = left + min(width, height)
-        bottom = top + min(width, height)
-        
-        # Crop the image from the calculated coordinates
-        cropped_image = input_image.crop((left, top, right, bottom))
-
-        # Convert to RGB mode if necessary (might not be needed if already in RGB)
-        final_image = cropped_image.convert("RGB")
-
+        final_image = input_image.convert("RGB")
         return final_image
-
     except Exception as e:
-        st.error(f"Error processing image at {image_path}: {str(e)}")
+        st.error(f"Error opening image at image_path: {str(e)}")
         return None
-
 
 # Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
@@ -75,8 +63,10 @@ def generate_card(data, template_path, image_folder, qr_folder):
         try:
             font_path = "C:\\WINDOWS\\FONTS\\ARIAL.TTF"  # Update with your font path
             name_font = ImageFont.truetype(font_path, size=18)
-        except IOError:
-            name_font = ImageFont.load_default()
+        except IOError as e:
+            logging.error(f"Error loading Arial font: {str(e)}")
+            st.error(f"Error loading Arial font for ID: {pic_id}. Check font path and file availability.")
+            return None
         
         # Adjust text wrapping and positioning
         wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
@@ -106,7 +96,6 @@ def generate_card(data, template_path, image_folder, qr_folder):
     except Exception as e:
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
-
 
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
@@ -144,8 +133,7 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
-# Function to create a PDF with generated ID cards
-def create_pdf(images, pdf_path):
+def create_pdf(images, pdf_path, background_image=None):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
 
@@ -166,7 +154,7 @@ def create_pdf(images, pdf_path):
 
         for i, image in enumerate(images):
             col = i % grid_width
-            row = i // grid_height
+            row = i // grid_width
 
             # Check if the current page is filled and there are more images to be processed
             if i > 0 and i % (grid_width * grid_height) == 0:
@@ -182,17 +170,22 @@ def create_pdf(images, pdf_path):
             x = start_x + col * (image_width + spacing_x)
             y = start_y + row * (image_height + spacing_y)
 
+            # Draw the background image if provided
+            if background_image:
+                c.drawImage(background_image, x, y, width=image_width, height=image_height, preserveAspectRatio=True)
+
             # Draw the image on the canvas
             c.drawInlineImage(image, x, y, width=image_width, height=image_height)
 
+        # Save the PDF to the specified path
         c.save()
-        return pdf_path
+
+        return pdf_path  # Return the path where the PDF is saved
 
     except Exception as e:
-        st.error(f"Error creating PDF: {str(e)}")
+        logging.error(f"Error creating PDF: {str(e)}")
         return None
 
-# Function to display the PDF download link
 def display_pdf(pdf_path):
     try:
         with open(pdf_path, "rb") as f:
@@ -203,7 +196,6 @@ def display_pdf(pdf_path):
         st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
-
 def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
