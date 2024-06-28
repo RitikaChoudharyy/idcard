@@ -60,7 +60,7 @@ def generate_card(data, template_path, image_folder, qr_folder):
     left = center_x - (crop_width // 2)
     top = center_y - (crop_height // 2) + 10  # adjust top margin by 20 pixels
     right = center_x + (crop_width // 2)
-    bottom = center_y + (crop_height // 2) - 10  # adjust bottom margin by 20 pixels
+    bottom = center_y + (crop_height // 2) # adjust bottom margin by 20 pixels
 
     # Crop the image
     cropped_img = preprocessed_pic.crop((left, top, right, bottom))
@@ -79,7 +79,7 @@ def generate_card(data, template_path, image_folder, qr_folder):
         
         try:
             font_path = "C:\\WINDOWS\\FONTS\\ARIAL.TTF"  # Update with your font path
-            name_font = ImageFont.truetype(font_path, size=18)
+            name_font = ImageFont.truetype(font_path, size=22)
         except IOError:
             name_font = ImageFont.load_default()
         
