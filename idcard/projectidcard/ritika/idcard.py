@@ -29,6 +29,22 @@ def generate_card(data, template_path, image_folder, qr_folder):
     if not pic_id:
         st.warning(f"Skipping record with missing ID: {data}")
         return None
+    preprocessed_pic = preprocess_image(pic_path)
+    if preprocessed_pic is None:
+        return None
+
+    # Calculate the center of the image
+    img_width, img_height = preprocessed_pic.size
+    center_x = img_width // 2
+    center_y = img_height // 2
+
+    # Define the crop dimensions
+    crop_width = 144
+    crop_height = 145
+    left = center_x - (crop_width // 2)
+    top = center_y - (crop_height // 2) + 20  # adjust top margin by 20 pixels
+    right = center_x + (crop_width // 2)
+    bottom = center_y + (crop_height // 2) - 20  # adjust bottom margin by 20 pixels
     
     pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
     st.write(f"Looking for image at path: {pic_path}")
