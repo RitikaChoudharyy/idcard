@@ -88,4 +88,4 @@ watchdog
 zipp
 rembg[gpu]
 rembg
-
+cv2
