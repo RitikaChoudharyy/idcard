@@ -1,20 +1,6 @@
-import cv2
-import streamlit as st
-import pandas as pd
-import os
-from PIL import Image, ImageDraw, ImageFont
-import textwrap
-from fpdf import FPDF
-import base64
-from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter, inch
-import logging
-import dlib
+import face_recognition
+import numpy as np
 
-logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
-
-# Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
     try:
         input_image = Image.open(image_path)
@@ -24,27 +10,26 @@ def preprocess_image(image_path):
         st.error(f"Error opening image at image_path: {str(e)}")
         return None
 
-# Function to detect and crop face from an image using dlib
 def detect_and_crop_face(image_path):
     try:
-        detector = dlib.get_frontal_face_detector()
-        image = cv2.imread(image_path)
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        faces = detector(gray)
-        if len(faces) == 0:
-            st.warning("No face detected.")
+        image = face_recognition.load_image_file(image_path)
+        face_locations = face_recognition.face_locations(image)
+
+        if not face_locations:
+            st.warning(f"No faces detected in image: {image_path}")
             return None
 
-        for face in faces:
-            x1, y1 = face.left(), face.top()
-            x2, y2 = face.right(), face.bottom()
-            cropped_face = image[y1:y2, x1:x2]
-            cropped_face = cv2.resize(cropped_face, (144, 145))  # Resize cropped face
+        # Assuming only one face is detected, crop the first one
+        top, right, bottom, left = face_locations[0]
+        face_image = image[top:bottom, left:right]
+        face_image = Image.fromarray(face_image)
 
-        cropped_face_pil = Image.fromarray(cv2.cvtColor(cropped_face, cv2.COLOR_BGR2RGB))
-        return cropped_face_pil
+        # Resize the cropped face image to 144x149
+        resized_face = face_image.resize((144, 149))
+
+        return resized_face
     except Exception as e:
-        st.error(f"Error during face detection and cropping: {str(e)}")
+        st.error(f"Error detecting and cropping face: {str(e)}")
         return None
 
 def generate_card(data, template_path, image_folder, qr_folder):
@@ -67,27 +52,36 @@ def generate_card(data, template_path, image_folder, qr_folder):
         st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
         return None
 
-    # Detect and crop face
-    cropped_img = detect_and_crop_face(pic_path)
-    if cropped_img is None:
+    # Preprocess the image and detect/crop face
+    preprocessed_pic = preprocess_image(pic_path)
+    if preprocessed_pic is None:
         return None
 
     try:
+        # Detect and crop face
+        cropped_face = detect_and_crop_face(pic_path)
+        if cropped_face is None:
+            return None
+
+        # Load template and QR code
         template = Image.open(template_path)
         qr = Image.open(qr_path).resize((161, 159))
 
-        template.paste(cropped_img, (27, 113, 171, 258))
+        # Resize and paste images onto the template
+        preprocessed_pic_resized = preprocessed_pic.resize((144, 145))
+        template.paste(preprocessed_pic_resized, (27, 113, 171, 258))
         template.paste(qr, (497, 109, 658, 268))
 
         draw = ImageDraw.Draw(template)
 
+        # Add text and other details to the template
         try:
             font_path = "C:\\WINDOWS\\FONTS\\ARIAL.TTF"  # Update with your font path
-            name_font = ImageFont.truetype(font_path, size=22)
+            name_font = ImageFont.truetype(font_path, size=18)
         except IOError:
             name_font = ImageFont.load_default()
 
-        # Adjust text wrapping and positioning
+        # Adjust text wrapping and positioning as before
         wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
         draw.text((311, 121), wrapped_div, font=name_font, fill='black')
 
