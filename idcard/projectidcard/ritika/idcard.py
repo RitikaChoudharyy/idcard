@@ -55,12 +55,12 @@ def generate_card(data, template_path, image_folder, qr_folder):
     center_y = img_height // 2
 
     # Define the crop dimensions
-    crop_width = 144
-    crop_height = 145
+    crop_width = 120
+    crop_height = 121
     left = center_x - (crop_width // 2)
-    top = center_y - (crop_height // 2) + 20  # adjust top margin by 20 pixels
+    top = center_y - (crop_height // 2) + 10  # adjust top margin by 20 pixels
     right = center_x + (crop_width // 2)
-    bottom = center_y + (crop_height // 2) - 20  # adjust bottom margin by 20 pixels
+    bottom = center_y + (crop_height // 2) - 10  # adjust bottom margin by 20 pixels
 
     # Crop the image
     cropped_img = preprocessed_pic.crop((left, top, right, bottom))
