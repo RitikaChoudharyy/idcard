@@ -6,13 +6,14 @@ from PIL import Image, ImageDraw, ImageFont
 import textwrap
 from fpdf import FPDF
 import base64
-from st_aggrid import AgGrid
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
-from reportlab.lib.units import inch, mm
 import logging
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
+
+
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
     try:
@@ -22,6 +23,7 @@ def preprocess_image(image_path):
     except Exception as e:
         st.error(f"Error opening image at image_path: {str(e)}")
         return None
+
 
 # Function to detect and crop face from an image
 def detect_and_crop_face(image_path):
@@ -35,7 +37,7 @@ def detect_and_crop_face(image_path):
             return None
 
         for (x, y, w, h) in faces:
-            cropped_face = image[y:y+h, x:x+w]
+            cropped_face = image[y:y + h, x:x + w]
             cropped_face = cv2.resize(cropped_face, (144, 145))  # Resize cropped face
 
         cropped_face_pil = Image.fromarray(cv2.cvtColor(cropped_face, cv2.COLOR_BGR2RGB))
@@ -43,6 +45,7 @@ def detect_and_crop_face(image_path):
     except Exception as e:
         st.error(f"Error during face detection and cropping: {str(e)}")
         return None
+
 
 def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
@@ -72,46 +75,47 @@ def generate_card(data, template_path, image_folder, qr_folder):
     try:
         template = Image.open(template_path)
         qr = Image.open(qr_path).resize((161, 159))
-        
+
         template.paste(cropped_img, (27, 113, 171, 258))
         template.paste(qr, (497, 109, 658, 268))
-        
+
         draw = ImageDraw.Draw(template)
-        
+
         try:
             font_path = "C:\\WINDOWS\\FONTS\\ARIAL.TTF"  # Update with your font path
             name_font = ImageFont.truetype(font_path, size=22)
         except IOError:
             name_font = ImageFont.load_default()
-        
+
         # Adjust text wrapping and positioning
         wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
         draw.text((311, 121), wrapped_div, font=name_font, fill='black')
-        
+
         division_input = data['Division/Section']
         head_name = get_head_by_division(division_input)
         wrapped_supri = textwrap.fill(str(head_name), width=20).title()
         draw.text((311, 170), wrapped_supri, font=name_font, fill='black')
-        
+
         university = data.get('University', 'Not Available')
         draw.text((200, 356), university, font=name_font, fill='black')
-        
+
         draw.text((305, 219), data['Internship Start Date'], font=name_font, fill='black')
         draw.text((303, 266), data['Internship End Date'], font=name_font, fill='black')
         draw.text((300, 312), str(data['Mobile']), font=name_font, fill='black')
         draw.text((621, 283), str(data['ID']), font=name_font, fill='black')
-        
+
         wrapped_name = center_align_text_wrapper(data['Name'], width=22)
         name_bbox = name_font.getbbox(wrapped_name)
         name_width = name_bbox[2] - name_bbox[0]
         center_x = ((198 - name_width) / 2)
         draw.text((center_x, 260), wrapped_name, font=name_font, fill='black')
-        
+
         return template
-    
+
     except Exception as e:
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
+
 
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
@@ -131,6 +135,7 @@ def center_align_text_wrapper(text, width=15):
     centered_text = "\n".join(centered_lines)
 
     return centered_text
+
 
 # Function to get the head by division
 def get_head_by_division(division_name):
@@ -210,7 +215,8 @@ def display_pdf(pdf_path):
         st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
-        
+
+
 def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
@@ -238,33 +244,15 @@ def main():
                 st.subheader('Edit CSV')
                 # Display editable DataFrame below the checkbox
                 with st.expander("View/Modify CSV"):
-                    grid_response = AgGrid(
-                        csv_data,
-                        editable=True,
-                        height=400,
-                        fit_columns_on_grid_load=True,
-                    )
-                    df_edited = grid_response['data']
+                    grid_response = generate_agrid(csv_data)
 
                     # Automatically save changes to CSV when data is edited
                     if st.session_state.get('csv_data_updated', False):
-                        df_edited.to_csv(csv_file.name, index=False)
+                        grid_data = grid_response['data']
+                        grid_df = pd.DataFrame(grid_data)
+                        grid_df.to_csv(csv_file.name, index=False)
                         st.success(f'CSV file "{csv_file.name}" updated successfully.')
                         st.session_state['csv_data_updated'] = False  # Reset the flag
-
-                    # Store initial state of csv_data in session state
-                    if 'csv_data' not in st.session_state:
-                        st.session_state['csv_data'] = csv_data
-
-                    # Check for changes in data and update session state if needed
-                    if not df_edited.equals(st.session_state['csv_data']):
-                        st.session_state['csv_data_updated'] = True
-                        st.session_state['csv_data'] = df_edited.copy()
-
-                    # Button to manually save changes
-                    if st.button('Save Changes'):
-                        df_edited.to_csv(csv_file.name, index=False)
-                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
 
         except Exception as e:
             st.error(f"Error reading CSV file: {str(e)}")
