@@ -1,6 +1,23 @@
-import face_recognition
-import numpy as np
+import os
+import textwrap
+from PIL import Image, ImageDraw, ImageFont
+from facenet_pytorch import MTCNN
+import torch
+import streamlit as st
+import streamlit as st
+import pandas as pd
+import os
+from PIL import Image, ImageDraw, ImageFont
+import textwrap
+from fpdf import FPDF
+import base64
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+import logging
+lcogging.basiConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
+# Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
     try:
         input_image = Image.open(image_path)
@@ -10,19 +27,21 @@ def preprocess_image(image_path):
         st.error(f"Error opening image at image_path: {str(e)}")
         return None
 
-def detect_and_crop_face(image_path):
+# Function to detect and crop face using MTCNN
+def detect_and_crop_face(image_path, mtcnn):
     try:
-        image = face_recognition.load_image_file(image_path)
-        face_locations = face_recognition.face_locations(image)
+        image = Image.open(image_path)
 
-        if not face_locations:
+        # Detect faces
+        boxes, _ = mtcnn.detect(image)
+
+        if boxes is None or len(boxes) == 0:
             st.warning(f"No faces detected in image: {image_path}")
             return None
 
         # Assuming only one face is detected, crop the first one
-        top, right, bottom, left = face_locations[0]
-        face_image = image[top:bottom, left:right]
-        face_image = Image.fromarray(face_image)
+        x1, y1, x2, y2 = boxes[0]
+        face_image = image.crop((int(x1), int(y1), int(x2), int(y2)))
 
         # Resize the cropped face image to 144x149
         resized_face = face_image.resize((144, 149))
@@ -32,6 +51,7 @@ def detect_and_crop_face(image_path):
         st.error(f"Error detecting and cropping face: {str(e)}")
         return None
 
+# Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
@@ -58,8 +78,12 @@ def generate_card(data, template_path, image_folder, qr_folder):
         return None
 
     try:
+        # Initialize MTCNN for face detection
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        mtcnn = MTCNN(keep_all=True, device=device)
+
         # Detect and crop face
-        cropped_face = detect_and_crop_face(pic_path)
+        cropped_face = detect_and_crop_face(pic_path, mtcnn)
         if cropped_face is None:
             return None
 
@@ -85,6 +109,7 @@ def generate_card(data, template_path, image_folder, qr_folder):
         wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
         draw.text((311, 121), wrapped_div, font=name_font, fill='black')
 
+        # Placeholder function, assuming it retrieves the head by division
         division_input = data['Division/Section']
         head_name = get_head_by_division(division_input)
         wrapped_supri = textwrap.fill(str(head_name), width=20).title()
@@ -128,6 +153,7 @@ def center_align_text_wrapper(text, width=15):
     centered_text = "\n".join(centered_lines)
 
     return centered_text
+
 
 # Function to get the head by division
 def get_head_by_division(division_name):
