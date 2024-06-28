@@ -14,8 +14,6 @@ import base64
 from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
-import logging
-lcogging.basiConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
