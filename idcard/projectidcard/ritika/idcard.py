@@ -29,6 +29,22 @@ def generate_card(data, template_path, image_folder, qr_folder):
     if not pic_id:
         st.warning(f"Skipping record with missing ID: {data}")
         return None
+
+    pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
+    st.write(f"Looking for image at path: {pic_path}")
+
+    if not os.path.exists(pic_path):
+        st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
+        return None
+
+    qr_path = os.path.join(qr_folder, f"{pic_id}.png")
+    st.write(f"Looking for QR code at path: {qr_path}")
+
+    if not os.path.exists(qr_path):
+        st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
+        return None
+
+    # Preprocess the image
     preprocessed_pic = preprocess_image(pic_path)
     if preprocessed_pic is None:
         return None
@@ -45,37 +61,18 @@ def generate_card(data, template_path, image_folder, qr_folder):
     top = center_y - (crop_height // 2) + 20  # adjust top margin by 20 pixels
     right = center_x + (crop_width // 2)
     bottom = center_y + (crop_height // 2) - 20  # adjust bottom margin by 20 pixels
-    
-    pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
-    st.write(f"Looking for image at path: {pic_path}")
-    
-    if not os.path.exists(pic_path):
-        st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
-        return None
-    
-    qr_path = os.path.join(qr_folder, f"{pic_id}.png")
-    st.write(f"Looking for QR code at path: {qr_path}")
-    
-    if not os.path.exists(qr_path):
-        st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
-        return None
 
-    # Preprocess the image
-    preprocessed_pic = preprocess_image(pic_path)
-    if preprocessed_pic is None:
-        return None
-    
-    try:
-        preprocessed_pic = preprocessed_pic.resize((144, 145))
-    except Exception as e:
-        st.error(f"Error resizing image for ID: {pic_id}. Error: {str(e)}")
-        return None
+    # Crop the image
+    cropped_img = preprocessed_pic.crop((left, top, right, bottom))
+
+    # Resize the cropped image
+    resized_img = cropped_img.resize((144, 145))
 
     try:
         template = Image.open(template_path)
         qr = Image.open(qr_path).resize((161, 159))
         
-        template.paste(preprocessed_pic, (27, 113, 171, 258))
+        template.paste(resized_img, (27, 113, 171, 258))
         template.paste(qr, (497, 109, 658, 268))
         
         draw = ImageDraw.Draw(template)
