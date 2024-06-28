@@ -1,4 +1,4 @@
-
+import cv2
 import streamlit as st
 import pandas as pd
 import os
@@ -13,7 +13,6 @@ from reportlab.lib.units import inch, mm
 import logging
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
-
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
     try:
@@ -22,6 +21,27 @@ def preprocess_image(image_path):
         return final_image
     except Exception as e:
         st.error(f"Error opening image at image_path: {str(e)}")
+        return None
+
+# Function to detect and crop face from an image
+def detect_and_crop_face(image_path):
+    try:
+        image = cv2.imread(image_path)
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+        if len(faces) == 0:
+            st.warning("No face detected.")
+            return None
+
+        for (x, y, w, h) in faces:
+            cropped_face = image[y:y+h, x:x+w]
+            cropped_face = cv2.resize(cropped_face, (144, 145))  # Resize cropped face
+
+        cropped_face_pil = Image.fromarray(cv2.cvtColor(cropped_face, cv2.COLOR_BGR2RGB))
+        return cropped_face_pil
+    except Exception as e:
+        st.error(f"Error during face detection and cropping: {str(e)}")
         return None
 
 def generate_card(data, template_path, image_folder, qr_folder):
@@ -44,35 +64,16 @@ def generate_card(data, template_path, image_folder, qr_folder):
         st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
         return None
 
-    # Preprocess the image
-    preprocessed_pic = preprocess_image(pic_path)
-    if preprocessed_pic is None:
+    # Detect and crop face
+    cropped_img = detect_and_crop_face(pic_path)
+    if cropped_img is None:
         return None
-
-    # Calculate the center of the image
-    img_width, img_height = preprocessed_pic.size
-    center_x = img_width // 2
-    center_y = img_height // 2
-
-    # Define the crop dimensions
-    crop_width = 120
-    crop_height = 121
-    left = center_x - (crop_width // 2)
-    top = center_y - (crop_height // 2) + 10  # adjust top margin by 20 pixels
-    right = center_x + (crop_width // 2)
-    bottom = center_y + (crop_height // 2) # adjust bottom margin by 20 pixels
-
-    # Crop the image
-    cropped_img = preprocessed_pic.crop((left, top, right, bottom))
-
-    # Resize the cropped image
-    resized_img = cropped_img.resize((144, 145))
 
     try:
         template = Image.open(template_path)
         qr = Image.open(qr_path).resize((161, 159))
         
-        template.paste(resized_img, (27, 113, 171, 258))
+        template.paste(cropped_img, (27, 113, 171, 258))
         template.paste(qr, (497, 109, 658, 268))
         
         draw = ImageDraw.Draw(template)
