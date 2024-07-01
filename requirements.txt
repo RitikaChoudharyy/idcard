@@ -85,3 +85,5 @@ validators==0.28.3
 virtualenv==20.26.3
 watchdog==4.0.1
 zipp==3.19.2
+dlib
+cmake== 3.29.6
