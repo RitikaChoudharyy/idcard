@@ -1,3 +1,4 @@
+import requests
 import streamlit as st
 import pandas as pd
 import os
@@ -5,13 +6,59 @@ from PIL import Image, ImageDraw, ImageFont
 import textwrap
 from fpdf import FPDF
 import base64
-from st_aggrid import AgGrid
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
 import logging
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
+
+# Set up Face API credentials
+FACE_API_KEY = 'your_face_api_key'
+FACE_API_ENDPOINT = 'your_face_api_endpoint'
+
+# Function to detect and crop face from an image using Face API
+def detect_and_crop_face(image_path):
+    try:
+        with open(image_path, "rb") as image_file:
+            image_data = image_file.read()
+
+        headers = {
+            'Ocp-Apim-Subscription-Key': FACE_API_KEY,
+            'Content-Type': 'application/octet-stream'
+        }
+
+        params = {
+            'returnFaceId': 'false',
+            'returnFaceLandmarks': 'false',
+            'returnFaceAttributes': ''
+        }
+
+        response = requests.post(FACE_API_ENDPOINT, params=params, headers=headers, data=image_data)
+        response.raise_for_status()
+        faces = response.json()
+
+        if not faces:
+            st.warning("No face detected.")
+            return None
+
+        # Assuming we use the first detected face
+        face = faces[0]
+        face_rectangle = face['faceRectangle']
+        left = face_rectangle['left']
+        top = face_rectangle['top']
+        width = face_rectangle['width']
+        height = face_rectangle['height']
+
+        image = Image.open(image_path)
+        cropped_face = image.crop((left, top, left + width, top + height))
+        cropped_face = cropped_face.resize((144, 149))  # Resize cropped face
+
+        return cropped_face
+    except Exception as e:
+        st.error(f"Error during face detection and cropping: {str(e)}")
+        return None
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
@@ -20,7 +67,7 @@ def preprocess_image(image_path):
         final_image = input_image.convert("RGB")
         return final_image
     except Exception as e:
-        st.error(f"Error opening image at image_path: {str(e)}")
+        st.error(f"Error opening image at {image_path}: {str(e)}")
         return None
 
 def generate_card(data, template_path, image_folder, qr_folder):
@@ -28,72 +75,66 @@ def generate_card(data, template_path, image_folder, qr_folder):
     if not pic_id:
         st.warning(f"Skipping record with missing ID: {data}")
         return None
-    
+
     pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
     st.write(f"Looking for image at path: {pic_path}")
-    
+
     if not os.path.exists(pic_path):
         st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
         return None
-    
+
     qr_path = os.path.join(qr_folder, f"{pic_id}.png")
     st.write(f"Looking for QR code at path: {qr_path}")
-    
+
     if not os.path.exists(qr_path):
         st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
         return None
 
-    # Preprocess the image
-    preprocessed_pic = preprocess_image(pic_path)
-    if preprocessed_pic is None:
-        return None
-    
-    try:
-        preprocessed_pic = preprocessed_pic.resize((144, 145))
-    except Exception as e:
-        st.error(f"Error resizing image for ID: {pic_id}. Error: {str(e)}")
+    # Detect and crop face
+    cropped_img = detect_and_crop_face(pic_path)
+    if cropped_img is None:
         return None
 
     try:
         template = Image.open(template_path)
         qr = Image.open(qr_path).resize((161, 159))
-        
-        template.paste(preprocessed_pic, (27, 113, 171, 258))
+
+        template.paste(cropped_img, (27, 113, 171, 262))
         template.paste(qr, (497, 109, 658, 268))
-        
+
         draw = ImageDraw.Draw(template)
-        
+
         try:
             font_path = "C:\\WINDOWS\\FONTS\\ARIAL.TTF"  # Update with your font path
-            name_font = ImageFont.truetype(font_path, size=18)
+            name_font = ImageFont.truetype(font_path, size=22)
         except IOError:
             name_font = ImageFont.load_default()
-        
+
         # Adjust text wrapping and positioning
         wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
         draw.text((311, 121), wrapped_div, font=name_font, fill='black')
-        
+
         division_input = data['Division/Section']
         head_name = get_head_by_division(division_input)
         wrapped_supri = textwrap.fill(str(head_name), width=20).title()
         draw.text((311, 170), wrapped_supri, font=name_font, fill='black')
-        
+
         university = data.get('University', 'Not Available')
         draw.text((200, 356), university, font=name_font, fill='black')
-        
+
         draw.text((305, 219), data['Internship Start Date'], font=name_font, fill='black')
         draw.text((303, 266), data['Internship End Date'], font=name_font, fill='black')
         draw.text((300, 312), str(data['Mobile']), font=name_font, fill='black')
         draw.text((621, 283), str(data['ID']), font=name_font, fill='black')
-        
+
         wrapped_name = center_align_text_wrapper(data['Name'], width=22)
         name_bbox = name_font.getbbox(wrapped_name)
         name_width = name_bbox[2] - name_bbox[0]
         center_x = ((198 - name_width) / 2)
         draw.text((center_x, 260), wrapped_name, font=name_font, fill='black')
-        
+
         return template
-    
+
     except Exception as e:
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
@@ -133,7 +174,6 @@ def get_head_by_division(division_name):
 
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
-
 
 def create_pdf(images, pdf_path):
     try:
@@ -181,21 +221,22 @@ def create_pdf(images, pdf_path):
         return pdf_path  # Return the path where the PDF is saved
 
     except Exception as e:
-        logging.error(f"Error creating PDF: {str(e)}")
-        return None
+        st.error(f"Error creating PDF: {str(e)}")
 
+def generate_agrid(data):
+    gb = GridOptionsBuilder.from_dataframe(data)
+    gb.configure_default_column(editable=True)
+    gb.configure_grid_options(domLayout='normal')
+    grid_options = gb.build()
 
-def display_pdf(pdf_path):
-    try:
-        with open(pdf_path, "rb") as f:
-            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
-            pdf_display = f'<a href="data:application/pdf;base64,{base64_pdf}" download="generated_id_cards.pdf">Download PDF</a>'
-            st.markdown(pdf_display, unsafe_allow_html=True)
-    except FileNotFoundError:
-        st.error(f"PDF file '{pdf_path}' not found.")
-    except Exception as e:
-        st.error(f"Error displaying PDF: {str(e)}")
-        
+    grid_response = AgGrid(
+        data,
+        gridOptions=grid_options,
+        update_mode=GridUpdateMode.MODEL_CHANGED
+    )
+
+    return grid_response
+
 def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
@@ -223,33 +264,15 @@ def main():
                 st.subheader('Edit CSV')
                 # Display editable DataFrame below the checkbox
                 with st.expander("View/Modify CSV"):
-                    grid_response = AgGrid(
-                        csv_data,
-                        editable=True,
-                        height=400,
-                        fit_columns_on_grid_load=True,
-                    )
-                    df_edited = grid_response['data']
+                    grid_response = generate_agrid(csv_data)
 
                     # Automatically save changes to CSV when data is edited
-                    if st.session_state.get('csv_data_updated', False):
-                        df_edited.to_csv(csv_file.name, index=False)
+                    if 'csv_data_updated' in st.session_state and st.session_state['csv_data_updated']:
+                        grid_data = grid_response['data']
+                        grid_df = pd.DataFrame(grid_data)
+                        grid_df.to_csv(csv_file.name, index=False)
                         st.success(f'CSV file "{csv_file.name}" updated successfully.')
                         st.session_state['csv_data_updated'] = False  # Reset the flag
-
-                    # Store initial state of csv_data in session state
-                    if 'csv_data' not in st.session_state:
-                        st.session_state['csv_data'] = csv_data
-
-                    # Check for changes in data and update session state if needed
-                    if not df_edited.equals(st.session_state['csv_data']):
-                        st.session_state['csv_data_updated'] = True
-                        st.session_state['csv_data'] = df_edited.copy()
-
-                    # Button to manually save changes
-                    if st.button('Save Changes'):
-                        df_edited.to_csv(csv_file.name, index=False)
-                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
 
         except Exception as e:
             st.error(f"Error reading CSV file: {str(e)}")
