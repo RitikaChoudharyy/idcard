@@ -27,7 +27,7 @@ def preprocess_image(image_path):
         st.error(f"Error opening image at image_path: {str(e)}")
         return None
 
-# Function to detect and crop face to passport size
+# Function to detect and crop face to passport size with background removal
 def detect_and_crop_face(image_path):
     try:
         img = cv2.imread(image_path)
@@ -49,9 +49,16 @@ def detect_and_crop_face(image_path):
         right = face.right()
         bottom = face.bottom()
 
-        # Crop and resize face to passport size (144x149)
-        cropped_face = img[top:bottom, left:right]
-        resized_face = cv2.resize(cropped_face, (144, 149))
+        # Crop face with a margin to adjust for background
+        margin = 10
+        cropped_face = img[top-margin:bottom+margin, left-margin:right+margin]
+
+        # Use a simple white background for the cropped image
+        mask = np.ones_like(cropped_face) * 255  # White background
+        masked_face = np.where(cropped_face > 10, cropped_face, mask)
+
+        # Resize face to passport size (144x149)
+        resized_face = cv2.resize(masked_face, (144, 149))
 
         # Convert back to PIL image
         pil_image = Image.fromarray(resized_face)
