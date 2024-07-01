@@ -1,4 +1,4 @@
-
+cmake
 
 entrypoints==0.4
 face-crop-plus==1.1.0
