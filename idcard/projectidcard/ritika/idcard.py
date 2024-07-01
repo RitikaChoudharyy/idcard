@@ -14,7 +14,7 @@ import numpy as np
 
 # Initialize dlib's face detector and shape predictor
 detector = dlib.get_frontal_face_detector()
-predictor_path = "path_to_predictor.dat"  # Update with your shape predictor path
+predictor_path = "idcard/projectidcard/ritika/downloaded_images"  # Update with your shape predictor path
 predictor = dlib.shape_predictor(predictor_path)
 
 # Function to preprocess image (convert to RGB and detect faces)
