@@ -5,7 +5,7 @@ from PIL import Image, ImageDraw, ImageFont
 import textwrap
 from fpdf import FPDF
 import base64
-from st_aggrid import AgGrid
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 import dlib
@@ -27,7 +27,7 @@ def preprocess_image(image_path):
         st.error(f"Error opening image at image_path: {str(e)}")
         return None
 
-# Function to detect and crop face to passport size with background removal
+# Function to detect and crop face to passport size
 def detect_and_crop_face(image_path):
     try:
         img = cv2.imread(image_path)
@@ -49,16 +49,9 @@ def detect_and_crop_face(image_path):
         right = face.right()
         bottom = face.bottom()
 
-        # Crop face with a margin to adjust for background
-        margin = 10
-        cropped_face = img[top-margin:bottom+margin, left-margin:right+margin]
-
-        # Use a simple white background for the cropped image
-        mask = np.ones_like(cropped_face) * 255  # White background
-        masked_face = np.where(cropped_face > 10, cropped_face, mask)
-
-        # Resize face to passport size (144x149)
-        resized_face = cv2.resize(masked_face, (144, 149))
+        # Crop and resize face to passport size (144x149)
+        cropped_face = img[top:bottom, left:right]
+        resized_face = cv2.resize(cropped_face, (144, 149))
 
         # Convert back to PIL image
         pil_image = Image.fromarray(resized_face)
@@ -71,7 +64,6 @@ def detect_and_crop_face(image_path):
 
 # Function to generate ID card with detected and cropped face
 def generate_card(data, template_path, image_folder, qr_folder):
-    # Assuming ID and other data retrieval logic remains unchanged
     pic_id = str(data.get('ID', ''))
     if not pic_id:
         st.warning(f"Skipping record with missing ID: {data}")
@@ -91,7 +83,6 @@ def generate_card(data, template_path, image_folder, qr_folder):
         st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
         return None
 
-    # Preprocess the image and detect/crop face
     preprocessed_pic = preprocess_image(pic_path)
     if preprocessed_pic is None:
         return None
@@ -121,7 +112,6 @@ def generate_card(data, template_path, image_folder, qr_folder):
         except IOError:
             name_font = ImageFont.load_default()
         
-        # Adjust text wrapping and positioning
         wrapped_div = textwrap.fill(str(data['Division/Section']), width=22).title()
         draw.text((311, 121), wrapped_div, font=name_font, fill='black')
         
@@ -150,6 +140,60 @@ def generate_card(data, template_path, image_folder, qr_folder):
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
 
+# Function to center-align text with wrapping
+def center_align_text_wrapper(text, width=15):
+    words = text.split()
+    lines = []
+    current_line = ""
+
+    for word in words:
+        if len(current_line) + len(word) + 1 <= width:
+            current_line += word + " "
+        else:
+            lines.append(current_line[:-1])  # Exclude the trailing space
+            current_line = word + " "
+
+    lines.append(current_line[:-1])  # Include the last line
+
+    centered_lines = [line.center(width) for line in lines]
+    centered_text = "\n".join(centered_lines)
+
+    return centered_text
+
+# Function to get the head by division
+def get_head_by_division(division_name):
+    divisions = {
+        "Advanced Information Technologies Group": ["Dr. Sanjay Singh"],
+        "Societal Electronics Group": ["Dr. Udit Narayan Pal"],
+        "Industrial Automation": ["Dr.S.S.Sadistap"],
+        "Vacuum Electronic Devices Group": ["Dr. Sanjay Kr. Ghosh"],
+        "High-Frequency Devices & System Group": ["Dr. Ayan Bandhopadhyay"],
+        "Semiconductor Sensors & Microsystems Group": ["Dr. Suchandan Pal"],
+        "Semiconductor Process Technology Group": ["Dr. Kuldip Singh"],
+        "Industrial R & D": ["Mr.Ashok Chauhan"],
+        "High Power Microwave Systems Group": ["Dr. Anirban Bera"],
+    }
+
+    division_name = division_name.strip().title()
+
+    if division_name in divisions:
+        head_names = divisions[division_name]
+        return head_names[0]  # Assuming only one head for each division
+    else:
+        return "Division not found or head information not available."
+
+# Function to create a PDF from the generated ID cards
+def create_pdf(cards, output_path):
+    pdf = FPDF()
+    for card in cards:
+        pdf.add_page()
+        card_path = f"temp_{card}.png"
+        card.save(card_path)
+        pdf.image(card_path, x=10, y=10, w=190)
+        os.remove(card_path)  # Remove temporary image file
+    pdf.output(output_path)
+    return output_path
+
 def generate_agrid(data):
     gb = GridOptionsBuilder.from_dataframe(data)
     gb.configure_default_column(editable=True)
@@ -164,20 +208,22 @@ def generate_agrid(data):
 
     return grid_response
 
+def get_binary_file_downloader_html(bin_file, file_label='File'):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    bin_str = base64.b64encode(data).decode()
+    return f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'
+
 def main():
-    # Streamlit setup
     st.title("Automatic ID Card Generation")
 
-    # Update these paths according to your file locations
     template_path = "idcard/projectidcard/ritika/ST.png"
     image_folder = "idcard/projectidcard/ritika/downloaded_images"
     qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
     output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"  # Default download path
 
-    # Sidebar for managing CSV
     st.sidebar.header('Manage CSV')
 
-    # File uploader in sidebar
     csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
 
     if csv_file is not None:
@@ -185,26 +231,22 @@ def main():
             csv_data = pd.read_csv(csv_file)
             st.sidebar.success('CSV file successfully uploaded/updated.')
 
-            # Checkbox for modifying CSV in sidebar
             modified_csv = st.sidebar.checkbox('Modify CSV')
             if modified_csv:
                 st.subheader('Edit CSV')
-                # Display editable DataFrame below the checkbox
                 with st.expander("View/Modify CSV"):
                     grid_response = generate_agrid(csv_data)
 
-                    # Automatically save changes to CSV when data is edited
                     if 'csv_data_updated' in st.session_state and st.session_state['csv_data_updated']:
                         grid_data = grid_response['data']
                         grid_df = pd.DataFrame(grid_data)
                         grid_df.to_csv(csv_file.name, index=False)
                         st.success(f'CSV file "{csv_file.name}" updated successfully.')
-                        st.session_state['csv_data_updated'] = False  # Reset the flag
+                        st.session_state['csv_data_updated'] = False
 
         except Exception as e:
             st.error(f"Error reading CSV file: {str(e)}")
 
-    # Section to generate ID cards
     st.subheader('Generate ID Cards')
     generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
 
@@ -236,11 +278,9 @@ def main():
                 for i, card in enumerate(generated_cards):
                     st.image(card, caption=f"Generated ID Card for ID: {id_list[i]}")
 
-                # Create PDF of generated ID cards
                 pdf_path = create_pdf(generated_cards, output_pdf_path_default)
                 if pdf_path:
                     st.success(f"PDF created successfully.")
-                    # Display download button for the PDF
                     st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
                 else:
                     st.error("Failed to create PDF.")
@@ -257,20 +297,12 @@ def main():
         if generated_cards:
             st.success(f"Generated {len(generated_cards)} ID cards.")
 
-            # Create PDF of generated ID cards
             pdf_path = create_pdf(generated_cards, output_pdf_path_default)
             if pdf_path:
                 st.success(f"PDF created successfully.")
-                # Display download button for the PDF
                 st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
             else:
                 st.error("Failed to create PDF.")
-
-def get_binary_file_downloader_html(bin_file, file_label='File'):
-    with open(bin_file, 'rb') as f:
-        data = f.read()
-    bin_str = base64.b64encode(data).decode()
-    return f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'
 
 if __name__ == "__main__":
     main()
