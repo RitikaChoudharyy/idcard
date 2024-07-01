@@ -51,7 +51,6 @@ PyMuPDFb==1.24.3
 pyreadline3==3.4.1
 python-dateutil==2.9.0.post0
 python-decouple==3.8
-python-magic-bin==0.4.14
 pytz==2024.1
 referencing==0.35.1
 rembg==2.0.57
