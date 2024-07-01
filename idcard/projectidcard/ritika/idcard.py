@@ -1,4 +1,4 @@
-import cv2
+import requests
 import streamlit as st
 import pandas as pd
 import os
@@ -14,24 +14,48 @@ import logging
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
-# Function to detect and crop face from an image using OpenCV
+# Set up Face API credentials
+FACE_API_KEY = 'your_face_api_key'
+FACE_API_ENDPOINT = 'your_face_api_endpoint'
+
+# Function to detect and crop face from an image using Face API
 def detect_and_crop_face(image_path):
     try:
-        image = cv2.imread(image_path)
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+        with open(image_path, "rb") as image_file:
+            image_data = image_file.read()
 
-        if len(faces) == 0:
+        headers = {
+            'Ocp-Apim-Subscription-Key': FACE_API_KEY,
+            'Content-Type': 'application/octet-stream'
+        }
+
+        params = {
+            'returnFaceId': 'false',
+            'returnFaceLandmarks': 'false',
+            'returnFaceAttributes': ''
+        }
+
+        response = requests.post(FACE_API_ENDPOINT, params=params, headers=headers, data=image_data)
+        response.raise_for_status()
+        faces = response.json()
+
+        if not faces:
             st.warning("No face detected.")
             return None
 
-        for (x, y, w, h) in faces:
-            cropped_face = image[y:y + h, x:x + w]
-            cropped_face = cv2.resize(cropped_face, (144, 149))  # Resize cropped face
+        # Assuming we use the first detected face
+        face = faces[0]
+        face_rectangle = face['faceRectangle']
+        left = face_rectangle['left']
+        top = face_rectangle['top']
+        width = face_rectangle['width']
+        height = face_rectangle['height']
 
-        cropped_face_pil = Image.fromarray(cv2.cvtColor(cropped_face, cv2.COLOR_BGR2RGB))
-        return cropped_face_pil
+        image = Image.open(image_path)
+        cropped_face = image.crop((left, top, left + width, top + height))
+        cropped_face = cropped_face.resize((144, 149))  # Resize cropped face
+
+        return cropped_face
     except Exception as e:
         st.error(f"Error during face detection and cropping: {str(e)}")
         return None
@@ -197,38 +221,39 @@ def create_pdf(images, pdf_path):
         return pdf_path  # Return the path where the PDF is saved
 
     except Exception as e:
-        logging.error(f"Error creating PDF: {str(e)}")
-        return None
+        st.error(f"Error creating PDF: {str(e)}")
 
-def display_pdf(pdf_path):
-    try:
-        with open(pdf_path, "rb") as f:
-            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
-            pdf_display = f'<a href="data:application/pdf;base64,{base64_pdf}" download="generated_id_cards.pdf">Download PDF</a>'
-            st.markdown(pdf_display, unsafe_allow_html=True)
-    except FileNotFoundError:
-        st.error(f"PDF file '{pdf_path}' not found.")
-    except Exception as e:
-        st.error(f"Error displaying PDF: {str(e)}")
+def generate_agrid(data):
+    gb = GridOptionsBuilder.from_dataframe(data)
+    gb.configure_default_column(editable=True)
+    gb.configure_grid_options(domLayout='normal')
+    grid_options = gb.build()
+
+    grid_response = AgGrid(
+        data,
+        gridOptions=grid_options,
+        update_mode=GridUpdateMode.MODEL_CHANGED
+    )
+
+    return grid_response
 
 def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
 
-    # Update these paths as needed
-    template_path = "path/to/your/template/image.png"
-    image_folder = "path/to/your/images"
-    qr_folder = "path/to/your/qr/codes"
-    output_pdf_path = "path/to/save/output.pdf"
+    # Update these paths according to your file locations
+    template_path = "idcard/projectidcard/ritika/ST.png"
+    image_folder = "idcard/projectidcard/ritika/downloaded_images"
+    qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
+    output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"  # Default download path
 
     # Sidebar for managing CSV
     st.sidebar.header('Manage CSV')
 
     # File uploader in sidebar
     csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
-    uploaded_file = st.file_uploader("Upload CSV File", type=["csv"])
-    if uploaded_file is not None:
-     if csv_file is not None:
+
+    if csv_file is not None:
         try:
             csv_data = pd.read_csv(csv_file)
             st.sidebar.success('CSV file successfully uploaded/updated.')
@@ -291,8 +316,28 @@ def main():
                     # Display download button for the PDF
                     st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
                 else:
-                    st.error("Failed to create PDF")
+                    st.error("Failed to create PDF.")
 
+    elif generate_mode == 'All Students':
+        st.info("Generating ID cards for all students...")
+        generated_cards = []
+
+        for index, data in csv_data.iterrows():
+            generated_card = generate_card(data, template_path, image_folder, qr_folder)
+            if generated_card:
+                generated_cards.append(generated_card)
+
+        if generated_cards:
+            st.success(f"Generated {len(generated_cards)} ID cards.")
+
+            # Create PDF of generated ID cards
+            pdf_path = create_pdf(generated_cards, output_pdf_path_default)
+            if pdf_path:
+                st.success(f"PDF created successfully.")
+                # Display download button for the PDF
+                st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
+            else:
+                st.error("Failed to create PDF.")
 
 def get_binary_file_downloader_html(bin_file, file_label='File'):
     with open(bin_file, 'rb') as f:
