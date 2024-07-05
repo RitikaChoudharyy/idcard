@@ -1,0 +1,8 @@
+
+numpy
+pandas
+Pillow
+streamlit
+streamlit_option_menu
+numpy
+pandas
