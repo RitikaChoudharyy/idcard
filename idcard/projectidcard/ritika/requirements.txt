@@ -2,6 +2,16 @@ streamlit
 numpy
 pillow
 opencv-contrib-python
+opencv-python
+numpy
+Pillow
+dlib-bin
+rembg
+streamlit
+pandas
+fpdf
+st-aggrid
+reportlab
 
 altair
 attrs
