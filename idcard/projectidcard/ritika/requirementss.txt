@@ -1,7 +1,6 @@
-numpy
+
 pandas
 PyPDF2
-Pillow
 streamlit
 streamlit_option_menu
 opencv-contrib-python
@@ -11,8 +10,6 @@ Pillow
 dlib-bin
 rembg
 streamlit
-pandas
-fpdf
 st-aggrid
 reportlab
 matplotlib
