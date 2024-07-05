@@ -1,4 +1,7 @@
-
+dlib
+face_recognition
+pandas
+streamlit
 pandas
 PyPDF2
 streamlit
