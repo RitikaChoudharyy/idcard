@@ -6,8 +6,6 @@ pandas
 PyPDF2
 streamlit
 streamlit_option_menu
-opencv-contrib-python
-opencv-python
 numpy
 Pillow
 dlib-bin
