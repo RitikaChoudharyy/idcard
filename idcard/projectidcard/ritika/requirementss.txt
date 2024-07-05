@@ -1,6 +1,6 @@
 numpy
 pandas
-fpdf2
+fpdf
 Pillow
 streamlit
 streamlit_option_menu
