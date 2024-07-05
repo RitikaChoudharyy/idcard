@@ -3,7 +3,7 @@ import pandas as pd
 import os
 from PIL import Image, ImageDraw, ImageFont
 import textwrap
-from fpdf import FPDF
+from fpdf2 import FPDF2
 import base64
 from st_aggrid import AgGrid
 from reportlab.pdfgen import canvas
