@@ -1,4 +1,4 @@
-dlib
+
 face_recognition
 pandas
 streamlit
@@ -8,7 +8,6 @@ streamlit
 streamlit_option_menu
 numpy
 Pillow
-dlib-bin
 rembg
 streamlit
 st-aggrid
@@ -105,4 +104,6 @@ watchdog
 zipp
 rembg[gpu]
 rembg
+
+ opencv-python
 
