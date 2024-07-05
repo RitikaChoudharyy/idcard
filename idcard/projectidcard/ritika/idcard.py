@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import os
@@ -135,7 +134,6 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
-
 def create_pdf(images, pdf_path):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
@@ -185,7 +183,6 @@ def create_pdf(images, pdf_path):
         logging.error(f"Error creating PDF: {str(e)}")
         return None
 
-
 def display_pdf(pdf_path):
     try:
         with open(pdf_path, "rb") as f:
@@ -196,7 +193,7 @@ def display_pdf(pdf_path):
         st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
-        
+
 def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
@@ -323,5 +320,5 @@ def get_binary_file_downloader_html(bin_file, file_label='File'):
     bin_str = base64.b64encode(data).decode()
     return f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     main()
