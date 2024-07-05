@@ -12,7 +12,8 @@ pandas
 fpdf
 st-aggrid
 reportlab
-
+matplotlib
+seaborn
 altair
 attrs
 blinker
