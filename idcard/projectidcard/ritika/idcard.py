@@ -1,10 +1,12 @@
 import streamlit as st
 import pandas as pd
 import os
-import cv2
 from PIL import Image, ImageDraw, ImageFont
-from rembg import remove
 import textwrap
+import cv2
+import numpy as np
+from rembg import remove
+import dlib
 from fpdf import FPDF
 import base64
 from st_aggrid import AgGrid
@@ -15,34 +17,35 @@ import logging
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
-# Initialize OpenCV's Haar cascade face detector
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+# Initialize dlib's face detector
+detector = dlib.get_frontal_face_detector()
 
+# Function to preprocess image (detect face, remove background, resize)
 def preprocess_image(image_path):
     try:
         input_image = Image.open(image_path)
-        open_cv_image = cv2.cvtColor(np.array(input_image), cv2.COLOR_RGB2BGR)
+        open_cv_image = np.array(input_image.convert("RGB"))
 
         gray = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
-
+        faces = detector(gray)
         if len(faces) == 0:
-            st.error(f"No face detected in the image at path: {image_path}")
+            st.error(f"No faces detected in the image at {image_path}.")
             return None
 
-        x, y, w, h = faces[0]
-        face_region = open_cv_image[y:y+h, x:x+w]
+        face = faces[0]
+        x, y, w, h = (face.left(), face.top(), face.width(), face.height())
+        face_image = open_cv_image[y:y + h, x:x + w]
 
-        face_image = Image.fromarray(cv2.cvtColor(face_region, cv2.COLOR_BGR2RGB))
-        face_no_bg = remove(face_image)
+        face_image_pil = Image.fromarray(cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB))
+        face_no_bg = remove(face_image_pil)
 
-        passport_size_image = face_no_bg.resize((144, 149), Image.LANCZOS)
-        final_image = Image.new("RGB", (144, 149), (255, 255, 255))
-        final_image.paste(passport_size_image, (0, 0), passport_size_image)
-
-        return final_image
+        resized_face = face_no_bg.resize((144, 149), Image.LANCZOS)
+        white_background = Image.new("RGB", (144, 149), (255, 255, 255))
+        white_background.paste(resized_face, (0, 0), resized_face)
+        
+        return white_background
     except Exception as e:
-        st.error(f"Error processing image at image_path: {str(e)}")
+        st.error(f"Error processing image at {image_path}: {str(e)}")
         return None
 
 def generate_card(data, template_path, image_folder, qr_folder):
@@ -74,8 +77,8 @@ def generate_card(data, template_path, image_folder, qr_folder):
         template = Image.open(template_path)
         qr = Image.open(qr_path).resize((161, 159))
         
-        template.paste(preprocessed_pic, (27, 113))
-        template.paste(qr, (497, 109))
+        template.paste(preprocessed_pic, (27, 113, 171, 258))
+        template.paste(qr, (497, 109, 658, 268))
         
         draw = ImageDraw.Draw(template)
         
@@ -150,7 +153,6 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
-
 def create_pdf(images, pdf_path):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
@@ -199,7 +201,6 @@ def create_pdf(images, pdf_path):
     except Exception as e:
         logging.error(f"Error creating PDF: {str(e)}")
         return None
-
 
 def display_pdf(pdf_path):
     try:
