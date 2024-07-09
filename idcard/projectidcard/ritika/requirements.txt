@@ -1,5 +1,7 @@
 dlib-bin
 
+onnxruntime as ort
+logging
 opencv-python-headless
 onnxruntime-gpu
 altair
