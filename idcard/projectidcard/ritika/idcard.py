@@ -13,10 +13,7 @@ from st_aggrid import AgGrid
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
-from rembg import remove
-import onnxruntime as ort
 import logging
-
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
@@ -26,8 +23,8 @@ detector = dlib.get_frontal_face_detector()
 # Function to preprocess image (detect face, remove background, resize)
 def preprocess_image(image_path):
     try:
-        input_image = Image.open(image_path)
-        open_cv_image = np.array(input_image.convert("RGB"))
+        input_image = Image.open(image_path).convert("RGB")
+        open_cv_image = np.array(input_image)
 
         gray = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2GRAY)
         faces = detector(gray)
@@ -45,7 +42,7 @@ def preprocess_image(image_path):
         resized_face = face_no_bg.resize((144, 149), Image.LANCZOS)
         white_background = Image.new("RGB", (144, 149), (255, 255, 255))
         white_background.paste(resized_face, (0, 0), resized_face)
-        
+
         return white_background
     except Exception as e:
         st.error(f"Error processing image at {image_path}: {str(e)}")
@@ -77,9 +74,10 @@ def generate_card(data, template_path, image_folder, qr_folder):
         return None
     
     try:
-        template = Image.open(template_path)
-        qr = Image.open(qr_path).resize((161, 159))
-        
+        template = Image.open(template_path).convert("RGB")
+        qr = Image.open(qr_path).convert("RGB").resize((161, 159))
+
+        # Ensure the dimensions for pasting are correct
         template.paste(preprocessed_pic, (27, 113, 171, 258))
         template.paste(qr, (497, 109, 658, 268))
         
@@ -215,7 +213,7 @@ def display_pdf(pdf_path):
         st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
-        
+
 def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
