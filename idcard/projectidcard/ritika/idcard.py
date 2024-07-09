@@ -78,8 +78,9 @@ def generate_card(data, template_path, image_folder, qr_folder):
         qr = Image.open(qr_path).convert("RGB").resize((161, 159))
 
         # Ensure the dimensions for pasting are correct
-        template.paste(preprocessed_pic, (27, 113, 171, 258))
-        template.paste(qr, (497, 109, 658, 268))
+        preprocessed_pic = preprocessed_pic.resize((144, 149)).convert("RGB")
+        template.paste(preprocessed_pic, (27, 113))
+        template.paste(qr, (497, 109))
         
         draw = ImageDraw.Draw(template)
         
