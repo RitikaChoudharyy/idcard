@@ -1,6 +1,6 @@
 dlib-bin
 
-onnxruntime as ort
+onnxruntime 
 logging
 opencv-python-headless
 onnxruntime-gpu
