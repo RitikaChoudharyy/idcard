@@ -1,7 +1,9 @@
 import streamlit as st
 import pandas as pd
 import os
+import cv2
 from PIL import Image, ImageDraw, ImageFont
+from rembg import remove
 import textwrap
 from fpdf import FPDF
 import base64
@@ -13,14 +15,34 @@ import logging
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
-# Function to preprocess image (convert to RGB)
+# Initialize OpenCV's Haar cascade face detector
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
 def preprocess_image(image_path):
     try:
         input_image = Image.open(image_path)
-        final_image = input_image.convert("RGB")
+        open_cv_image = cv2.cvtColor(np.array(input_image), cv2.COLOR_RGB2BGR)
+
+        gray = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+
+        if len(faces) == 0:
+            st.error(f"No face detected in the image at path: {image_path}")
+            return None
+
+        x, y, w, h = faces[0]
+        face_region = open_cv_image[y:y+h, x:x+w]
+
+        face_image = Image.fromarray(cv2.cvtColor(face_region, cv2.COLOR_BGR2RGB))
+        face_no_bg = remove(face_image)
+
+        passport_size_image = face_no_bg.resize((144, 149), Image.LANCZOS)
+        final_image = Image.new("RGB", (144, 149), (255, 255, 255))
+        final_image.paste(passport_size_image, (0, 0), passport_size_image)
+
         return final_image
     except Exception as e:
-        st.error(f"Error opening image at image_path: {str(e)}")
+        st.error(f"Error processing image at image_path: {str(e)}")
         return None
 
 def generate_card(data, template_path, image_folder, qr_folder):
@@ -49,17 +71,11 @@ def generate_card(data, template_path, image_folder, qr_folder):
         return None
     
     try:
-        preprocessed_pic = preprocessed_pic.resize((144, 145))
-    except Exception as e:
-        st.error(f"Error resizing image for ID: {pic_id}. Error: {str(e)}")
-        return None
-
-    try:
         template = Image.open(template_path)
         qr = Image.open(qr_path).resize((161, 159))
         
-        template.paste(preprocessed_pic, (27, 113, 171, 258))
-        template.paste(qr, (497, 109, 658, 268))
+        template.paste(preprocessed_pic, (27, 113))
+        template.paste(qr, (497, 109))
         
         draw = ImageDraw.Draw(template)
         
@@ -322,5 +338,5 @@ def get_binary_file_downloader_html(bin_file, file_label='File'):
     bin_str = base64.b64encode(data).decode()
     return f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     main()
