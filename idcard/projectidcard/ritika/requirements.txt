@@ -1,6 +1,6 @@
 dlib-bin
-opencv-contrib-python-headless
-#opencv-python-headless
+
+opencv-python-headless
 altair
 attrs
 blinker
