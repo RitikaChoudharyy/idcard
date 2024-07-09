@@ -1,6 +1,7 @@
 dlib-bin
 onnxruntime
 opencv-python-headless
+onnxruntime-gpu
 altair
 attrs
 blinker
