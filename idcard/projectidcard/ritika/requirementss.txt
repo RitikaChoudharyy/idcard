@@ -1,3 +1,4 @@
+opencv-python
 altair
 attrs
 blinker
