@@ -1,6 +1,5 @@
 dlib-bin
 onnxruntime
-
 opencv-python-headless
 altair
 attrs
