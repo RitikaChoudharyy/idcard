@@ -36,8 +36,7 @@ networkx
 numba
 numpy
 onnxruntime
-opencv-python
-opencv-python-headless
+opencv-contrib-python
 packaging
 pandas
 Pillow
