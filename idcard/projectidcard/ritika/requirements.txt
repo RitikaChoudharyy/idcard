@@ -1,3 +1,5 @@
+dlib-bin
+
 opencv-python-headless
 altair
 attrs
