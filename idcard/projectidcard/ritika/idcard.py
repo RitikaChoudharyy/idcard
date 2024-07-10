@@ -3,10 +3,6 @@ import pandas as pd
 import os
 from PIL import Image, ImageDraw, ImageFont
 import textwrap
-import cv2
-import numpy as np
-from rembg import remove
-import dlib
 from fpdf import FPDF
 import base64
 from st_aggrid import AgGrid
@@ -17,35 +13,14 @@ import logging
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
-# Initialize dlib's face detector
-detector = dlib.get_frontal_face_detector()
-
-# Function to preprocess image (detect face, remove background, resize)
+# Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
     try:
-        input_image = Image.open(image_path).convert("RGB")
-        open_cv_image = np.array(input_image)
-
-        gray = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2GRAY)
-        faces = detector(gray)
-        if len(faces) == 0:
-            st.error(f"No faces detected in the image at {image_path}.")
-            return None
-
-        face = faces[0]
-        x, y, w, h = (face.left(), face.top(), face.width(), face.height())
-        face_image = open_cv_image[y:y + h, x:x + w]
-
-        face_image_pil = Image.fromarray(cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB))
-        face_no_bg = remove(face_image_pil)
-
-        resized_face = face_no_bg.resize((144, 149), Image.LANCZOS)
-        white_background = Image.new("RGB", (144, 149), (255, 255, 255))
-        white_background.paste(resized_face, (0, 0), resized_face)
-
-        return white_background
+        input_image = Image.open(image_path)
+        final_image = input_image.convert("RGB")
+        return final_image
     except Exception as e:
-        st.error(f"Error processing image at {image_path}: {str(e)}")
+        st.error(f"Error opening image at image_path: {str(e)}")
         return None
 
 def generate_card(data, template_path, image_folder, qr_folder):
@@ -74,13 +49,17 @@ def generate_card(data, template_path, image_folder, qr_folder):
         return None
     
     try:
-        template = Image.open(template_path).convert("RGB")
-        qr = Image.open(qr_path).convert("RGB").resize((161, 159))
+        preprocessed_pic = preprocessed_pic.resize((144, 145))
+    except Exception as e:
+        st.error(f"Error resizing image for ID: {pic_id}. Error: {str(e)}")
+        return None
 
-        # Ensure the dimensions for pasting are correct
-        preprocessed_pic = preprocessed_pic.resize((144, 149)).convert("RGB")
-        template.paste(preprocessed_pic, (27, 113))
-        template.paste(qr, (497, 109))
+    try:
+        template = Image.open(template_path)
+        qr = Image.open(qr_path).resize((161, 159))
+        
+        template.paste(preprocessed_pic, (27, 113, 171, 258))
+        template.paste(qr, (497, 109, 658, 268))
         
         draw = ImageDraw.Draw(template)
         
@@ -155,6 +134,7 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
+
 def create_pdf(images, pdf_path):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
@@ -204,6 +184,7 @@ def create_pdf(images, pdf_path):
         logging.error(f"Error creating PDF: {str(e)}")
         return None
 
+
 def display_pdf(pdf_path):
     try:
         with open(pdf_path, "rb") as f:
@@ -214,7 +195,7 @@ def display_pdf(pdf_path):
         st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
-
+        
 def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
@@ -280,65 +261,30 @@ def main():
     if generate_mode == 'Individual ID':
         id_input = st.text_input('Enter the ID:')
         if st.button('Generate ID Card'):
-            if not csv_file:
-                st.warning('Please upload a CSV file first.')
-            elif not id_input.isdigit():
+            if not id_input.isdigit():
                 st.warning('Invalid input. Please enter a valid numeric ID.')
             else:
-                selected_data = csv_data[csv_data['ID'] == int(id_input)]
-                if selected_data.empty:
-                    st.warning('No record found for the entered ID.')
-                else:
-                    generated_card = generate_card(selected_data.iloc[0], template_path, image_folder, qr_folder)
-                    if generated_card:
-                        st.image(generated_card, caption=f"Generated ID Card for ID: {id_input}")
+                selected_data = csv_data[csv_data['ID'] == int(id_input)].iloc[0]
+                generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
+                if generated_card:
+                    st.image(generated_card, caption=f"Generated ID Card for ID: {id_input}")
 
     elif generate_mode == 'Comma-separated IDs':
         ids_input = st.text_input('Enter comma-separated IDs:')
         if st.button('Generate ID Cards'):
-            if not csv_file:
-                st.warning('Please upload a CSV file first.')
-            else:
-                id_list = [int(id.strip()) for id in ids_input.split(',') if id.strip().isdigit()]
-                generated_cards = []
-
-                for id_input in id_list:
-                    selected_data = csv_data[csv_data['ID'] == id_input]
-                    if selected_data.empty:
-                        st.warning(f'No record found for ID: {id_input}')
-                        continue
-                    generated_card = generate_card(selected_data.iloc[0], template_path, image_folder, qr_folder)
-                    if generated_card:
-                        generated_cards.append(generated_card)
-
-                if generated_cards:
-                    st.success(f"Generated {len(generated_cards)} ID cards.")
-                    for i, card in enumerate(generated_cards):
-                        st.image(card, caption=f"Generated ID Card for ID: {id_list[i]}")
-
-                    # Create PDF of generated ID cards
-                    pdf_path = create_pdf(generated_cards, output_pdf_path_default)
-                    if pdf_path:
-                        st.success(f"PDF created successfully.")
-                        # Display download button for the PDF
-                        st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
-                    else:
-                        st.error("Failed to create PDF.")
-
-    elif generate_mode == 'All Students':
-        if not csv_file:
-            st.warning('Please upload a CSV file first.')
-        else:
-            st.info("Generating ID cards for all students...")
+            id_list = [int(id.strip()) for id in ids_input.split(',') if id.strip().isdigit()]
             generated_cards = []
 
-            for index, data in csv_data.iterrows():
-                generated_card = generate_card(data, template_path, image_folder, qr_folder)
+            for id_input in id_list:
+                selected_data = csv_data[csv_data['ID'] == id_input].iloc[0]
+                generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
                 if generated_card:
                     generated_cards.append(generated_card)
 
             if generated_cards:
                 st.success(f"Generated {len(generated_cards)} ID cards.")
+                for i, card in enumerate(generated_cards):
+                    st.image(card, caption=f"Generated ID Card for ID: {id_list[i]}")
 
                 # Create PDF of generated ID cards
                 pdf_path = create_pdf(generated_cards, output_pdf_path_default)
@@ -349,11 +295,31 @@ def main():
                 else:
                     st.error("Failed to create PDF.")
 
+    elif generate_mode == 'All Students':
+        st.info("Generating ID cards for all students...")
+        generated_cards = []
+
+        for index, data in csv_data.iterrows():
+            generated_card = generate_card(data, template_path, image_folder, qr_folder)
+            if generated_card:
+                generated_cards.append(generated_card)
+
+        if generated_cards:
+            st.success(f"Generated {len(generated_cards)} ID cards.")
+
+            # Create PDF of generated ID cards
+            pdf_path = create_pdf(generated_cards, output_pdf_path_default)
+            if pdf_path:
+                st.success(f"PDF created successfully.")
+                # Display download button for the PDF
+                st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
+            else:
+                st.error("Failed to create PDF.")
+
 def get_binary_file_downloader_html(bin_file, file_label='File'):
     with open(bin_file, 'rb') as f:
         data = f.read()
     bin_str = base64.b64encode(data).decode()
     return f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
