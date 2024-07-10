@@ -1,4 +1,4 @@
-pythonCopyimport streamlit as st
+import streamlit as st
 import pandas as pd
 import os
 from PIL import Image, ImageDraw, ImageFont
@@ -51,6 +51,7 @@ def download_images_from_drive(spreadsheet_id, image_folder):
             st.write(f'Downloaded: {save_as_filename}')
         except Exception as e:
             st.error(f'Error downloading image from {image_url}: {e}')
+
 def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
@@ -221,6 +222,7 @@ def display_pdf(pdf_path):
         st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
+
 def main():
     st.title("Automatic ID Card Generation")
 
@@ -252,7 +254,7 @@ def main():
 
     # Section to generate ID cards
     st.subheader('Generate ID Cards')
-    generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students')
+    generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
 
     if generate_mode == 'Individual ID':
         id_input = st.text_input('Enter the ID:')
@@ -287,7 +289,7 @@ def main():
                 if pdf_path:
                     st.success(f"PDF created successfully.")
                     # Display download button for the PDF
-                    st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
+                    display_pdf(pdf_path)
                 else:
                     st.error("Failed to create PDF.")
 
