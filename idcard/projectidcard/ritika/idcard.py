@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import os
@@ -15,15 +16,29 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 import io
 import gspread
+import json
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
-# Function to download images from Google Drive
+def get_credentials():
+    # Get the JSON credentials from the environment variable
+    creds_json = os.environ.get('GOOGLE_CREDENTIALS')
+    if creds_json:
+        creds_dict = json.loads(creds_json)
+        creds = service_account.Credentials.from_service_account_info(
+            creds_dict,
+            scopes=['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets.readonly']
+        )
+        return creds
+    else:
+        st.error("Google credentials not found in environment variables.")
+        return None
+
 def download_images_from_drive(spreadsheet_id, image_folder):
-    credentials = service_account.Credentials.from_service_account_file(
-        'ceeriintern-440751c7bf05.json',
-        scopes=['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets.readonly']
-    )
+    credentials = get_credentials()
+    if not credentials:
+        return
+
     gc = gspread.authorize(credentials)
     drive_service = build('drive', 'v3', credentials=credentials)
 
@@ -230,24 +245,16 @@ def main():
     template_path = "idcard/projectidcard/ritika/ST.png"
     image_folder = "idcard/projectidcard/ritika/downloaded_images"
     qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
-    output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"
+    output_pdf_path_default = "generated_id_cards.pdf"
 
     # Add a button to trigger image download
     if st.button("Download Images from Google Drive"):
-        spreadsheet_id = '1oJ40rKq4jDSMsvmtCvlja2FnXRCV8aAfAXWsyWhM_Ds'  # Replace with your actual spreadsheet ID
-        download_images_from_drive(spreadsheet_id, image_folder)
-        st.success("Images downloaded successfully!")
-
-    # Sidebar for managing CSV
-    st.sidebar.header('Manage CSV')
-    csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
-
-    if csv_file is not None:
-        try:
-            csv_data = pd.read_csv(csv_file)
-            st.sidebar.success('CSV file successfully uploaded/updated.')
-
-            # Rest of your CSV handling code...
+        spreadsheet_id = os.environ.get('SPREADSHEET_ID')
+        if spreadsheet_id:
+            download_images_from_drive(spreadsheet_id, image_folder)
+            st.success("Images downloaded successfully!")
+        else:
+            st.error("Spreadsheet ID not found in environment variables.")
 
         except Exception as e:
             st.error(f"Error reading CSV file: {str(e)}")
