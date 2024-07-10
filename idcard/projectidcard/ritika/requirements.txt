@@ -1,5 +1,5 @@
 google-auth
-
+google_auth_httplib2 
 dlib-bin
 opencv-python-headless
 onnxruntime 
