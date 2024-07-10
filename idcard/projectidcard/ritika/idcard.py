@@ -30,17 +30,15 @@ def preprocess_image(image_path):
         return None
 
 # Function to generate card using fetched image and data
-def generate_card(data, template_path, image_folder, qr_folder):
+def generate_card(data, template_path, image_paths, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
         st.warning(f"Skipping record with missing ID: {data}")
         return None
     
-    pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
-    st.write(f"Looking for image at path: {pic_path}")
-    
-    if not os.path.exists(pic_path):
-        st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
+    pic_path = [path for path in image_paths if pic_id in path]
+    if not pic_path:
+        st.error(f"Image not found for ID: {pic_id}")
         return None
     
     qr_path = os.path.join(qr_folder, f"{pic_id}.png")
@@ -221,6 +219,8 @@ def download_images_from_drive(credentials_path, sheet_id, output_folder):
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
 
+        downloaded_image_paths = []
+
         for index, url in enumerate(image_urls):
             try:
                 # Extract file ID from URL
@@ -240,13 +240,18 @@ def download_images_from_drive(credentials_path, sheet_id, output_folder):
                     f.write(fh.getvalue())
 
                 st.write(f"Downloaded image {index + 1}/{len(image_urls)}")
+                downloaded_image_paths.append(image_path)
+            
             except Exception as e:
                 st.error(f"Error downloading image from URL {url}: {str(e)}")
                 logging.error(f"Error downloading image from URL {url}: {str(e)}")
 
+        return downloaded_image_paths
+
     except Exception as e:
         st.error(f"Error downloading images from Google Drive: {str(e)}")
         logging.error(f"Error downloading images from Google Drive: {str(e)}")
+        return []
 
 # Main Streamlit app code
 def main():
@@ -268,13 +273,13 @@ def main():
 
         # Check if template and folders are selected
         if template_path and image_folder and qr_folder:
-            # Load data from Google Sheet
+            # Load data from Google Sheet and Download Images
             credentials_path = st.sidebar.file_uploader("Upload Google Service Account Credentials", type=["json"])
             sheet_id = st.sidebar.text_input("Google Sheet ID")
             if credentials_path and sheet_id:
                 try:
                     output_folder = "downloaded_images"
-                    download_images_from_drive(credentials_path, sheet_id, output_folder)
+                    downloaded_image_paths = download_images_from_drive(credentials_path, sheet_id, output_folder)
                 except Exception as e:
                     st.error(f"Error downloading images: {str(e)}")
 
@@ -290,7 +295,7 @@ def main():
                         st.subheader("Generated ID Cards")
                         images = []
                         for _, row in data.iterrows():
-                            card = generate_card(row, template_path, image_folder, qr_folder)
+                            card = generate_card(row, template_path, downloaded_image_paths, qr_folder)
                             if card:
                                 images.append(card)
 
@@ -328,7 +333,8 @@ def main():
 
             if download_button:
                 try:
-                    download_images_from_drive(credentials_path, sheet_id, output_folder)
+                    downloaded_image_paths = download_images_from_drive(credentials_path, sheet_id, output_folder)
+                    st.success(f"Images downloaded successfully to {output_folder}.")
                 except Exception as e:
                     st.error(f"Error downloading images: {str(e)}")
 
