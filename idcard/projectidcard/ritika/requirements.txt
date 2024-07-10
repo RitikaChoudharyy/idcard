@@ -1,33 +1,4 @@
-certifi
-charset-normalizer
-click
-dataclasses
-decorator
-entrypoints
-fsspec
-idna
-importlib-metadata
-numpy
-packaging
-pandas
-Pillow
-protobuf
-pyarrow
-pyparsing
-python-dateutil
-pytz
-PyYAML
-requests
-six
-smmap
-streamlit
-st-aggrid
-toml
-torch
-torchvision
-typing-extensions
-urllib3
-validators
+
 
 
 
