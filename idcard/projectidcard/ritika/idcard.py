@@ -15,11 +15,13 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 import io
-if os.path.exists('ceeriintern-440751c7bf05.json'):
-    credentials = service_account.Credentials.from_service_account_file('ceeriintern-440751c7bf05.json', scopes=['https://www.googleapis.com/auth/drive'])
-else:
-    print("File not found!")
+import os
 
+file_path = 'ceeriintern-440751c7bf05.json'
+if os.path.exists(file_path):
+    credentials = service_account.Credentials.from_service_account_file(file_path, scopes=['https://www.googleapis.com/auth/drive'])
+else:
+    print(f"File not found: {file_path}")
 # Load credentials from the service account JSON file
 credentials = service_account.Credentials.from_service_account_file('ceeriintern-440751c7bf05.json', scopes=['https://www.googleapis.com/auth/drive'])
 gc = gspread.authorize(credentials)
