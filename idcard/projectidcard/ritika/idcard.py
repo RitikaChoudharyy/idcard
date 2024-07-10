@@ -1,4 +1,4 @@
-import streamlit as st
+pythonCopyimport streamlit as st
 import pandas as pd
 import os
 from PIL import Image, ImageDraw, ImageFont
@@ -10,42 +10,47 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
 import logging
-import gspread
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
-import streamlit as st
+import io
+import gspread
 
-# Load the secrets from the uploaded file
-secrets = st.secrets["ceeriintern-440751c7bf05.json"]
+logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
-# Use the secrets to authenticate with the Google Drive API
-credentials = service_account.Credentials.from_service_account_info(secrets, scopes=['https://www.googleapis.com/auth/drive'])
+# Function to download images from Google Drive
+def download_images_from_drive(spreadsheet_id, image_folder):
+    credentials = service_account.Credentials.from_service_account_file(
+        'ceeriintern-440751c7bf05.json',
+        scopes=['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets.readonly']
+    )
+    gc = gspread.authorize(credentials)
+    drive_service = build('drive', 'v3', credentials=credentials)
 
-file_path = 'ceeriintern-440751c7bf05.json'
-if os.path.exists(file_path):
-    credentials = service_account.Credentials.from_service_account_file(file_path, scopes=['https://www.googleapis.com/auth/drive'])
-else:
-    print(f"File not found: {file_path}")
-# Load credentials from the service account JSON file
-credentials = service_account.Credentials.from_service_account_file('ceeriintern-440751c7bf05.json', scopes=['https://www.googleapis.com/auth/drive'])
-gc = gspread.authorize(credentials)
-drive_service = build('drive', 'v3', credentials=credentials)
+    worksheet = gc.open_by_key(spreadsheet_id).sheet1
+    image_urls = worksheet.col_values(2)[1:]  # Assuming image URLs are in column 2, starting from row 2
 
-# Open the Google Sheet
-spreadsheet_id = '1oJ40rKq4jDSMsvmtCvlja2FnXRCV8aAfAXWsyWhM_Ds'
-worksheet = gc.open_by_key(spreadsheet_id).sheet
+    if not os.path.exists(image_folder):
+        os.makedirs(image_folder)
 
-# Function to preprocess image (convert to RGB)
-def preprocess_image(image_path):
-    try:
-        input_image = Image.open(image_path)
-        final_image = input_image.convert("RGB")
-        return final_image
-    except Exception as e:
-        st.error(f"Error opening image at image_path: {str(e)}")
-        return None
+    for i, image_url in enumerate(image_urls, start=2):
+        try:
+            file_id = image_url.split('id=')[1]
+            request = drive_service.files().get_media(fileId=file_id)
+            fh = io.BytesIO()
+            downloader = MediaIoBaseDownload(fh, request)
+            done = False
+            while not done:
+                status, done = downloader.next_chunk()
 
+            save_as_filename = os.path.join(image_folder, f'{worksheet.cell(i, 1).value}.jpg')
+            with open(save_as_filename, 'wb') as f:
+                fh.seek(0)
+                f.write(fh.read())
+
+            st.write(f'Downloaded: {save_as_filename}')
+        except Exception as e:
+            st.error(f'Error downloading image from {image_url}: {e}')
 def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
@@ -217,19 +222,22 @@ def display_pdf(pdf_path):
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
 def main():
-    # Streamlit setup
     st.title("Automatic ID Card Generation")
 
     # Update these paths according to your file locations
     template_path = "idcard/projectidcard/ritika/ST.png"
     image_folder = "idcard/projectidcard/ritika/downloaded_images"
     qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
-    output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"  # Default download path
+    output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"
+
+    # Add a button to trigger image download
+    if st.button("Download Images from Google Drive"):
+        spreadsheet_id = '1oJ40rKq4jDSMsvmtCvlja2FnXRCV8aAfAXWsyWhM_Ds'  # Replace with your actual spreadsheet ID
+        download_images_from_drive(spreadsheet_id, image_folder)
+        st.success("Images downloaded successfully!")
 
     # Sidebar for managing CSV
     st.sidebar.header('Manage CSV')
-
-    # File uploader in sidebar
     csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
 
     if csv_file is not None:
@@ -237,46 +245,14 @@ def main():
             csv_data = pd.read_csv(csv_file)
             st.sidebar.success('CSV file successfully uploaded/updated.')
 
-            # Checkbox for modifying CSV in sidebar
-            modified_csv = st.sidebar.checkbox('Modify CSV')
-            if modified_csv:
-                st.subheader('Edit CSV')
-                # Display editable DataFrame below the checkbox
-                with st.expander("View/Modify CSV"):
-                    grid_response = AgGrid(
-                        csv_data,
-                        editable=True,
-                        height=400,
-                        fit_columns_on_grid_load=True,
-                    )
-                    df_edited = grid_response['data']
-
-                    # Automatically save changes to CSV when data is edited
-                    if st.session_state.get('csv_data_updated', False):
-                        df_edited.to_csv(csv_file.name, index=False)
-                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
-                        st.session_state['csv_data_updated'] = False  # Reset the flag
-
-                    # Store initial state of csv_data in session state
-                    if 'csv_data' not in st.session_state:
-                        st.session_state['csv_data'] = csv_data
-
-                    # Check for changes in data and update session state if needed
-                    if not df_edited.equals(st.session_state['csv_data']):
-                        st.session_state['csv_data_updated'] = True
-                        st.session_state['csv_data'] = df_edited.copy()
-
-                    # Button to manually save changes
-                    if st.button('Save Changes'):
-                        df_edited.to_csv(csv_file.name, index=False)
-                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
+            # Rest of your CSV handling code...
 
         except Exception as e:
             st.error(f"Error reading CSV file: {str(e)}")
 
     # Section to generate ID cards
     st.subheader('Generate ID Cards')
-    generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
+    generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students')
 
     if generate_mode == 'Individual ID':
         id_input = st.text_input('Enter the ID:')
