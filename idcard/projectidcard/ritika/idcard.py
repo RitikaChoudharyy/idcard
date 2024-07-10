@@ -1,12 +1,13 @@
-import streamlit as st
-import pandas as pd
 import os
-from PIL import Image, ImageDraw, ImageFont
-import textwrap
+import dlib
 import cv2
 import numpy as np
+from PIL import Image, ImageChops
 from rembg import remove
-import dlib
+import streamlit as st
+import pandas as pd
+from PIL import Image, ImageDraw, ImageFont
+import textwrap
 from fpdf import FPDF
 import base64
 from st_aggrid import AgGrid
@@ -17,35 +18,14 @@ import logging
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
-# Initialize dlib's face detector
-detector = dlib.get_frontal_face_detector()
-
-# Function to preprocess image (detect face, remove background, resize)
+# Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
     try:
-        input_image = Image.open(image_path).convert("RGB")
-        open_cv_image = np.array(input_image)
-
-        gray = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2GRAY)
-        faces = detector(gray)
-        if len(faces) == 0:
-            st.error(f"No faces detected in the image at {image_path}.")
-            return None
-
-        face = faces[0]
-        x, y, w, h = (face.left(), face.top(), face.width(), face.height())
-        face_image = open_cv_image[y:y + h, x:x + w]
-
-        face_image_pil = Image.fromarray(cv2.cvtColor(face_image, cv2.COLOR_BGR2RGB))
-        face_no_bg = remove(face_image_pil)
-
-        resized_face = face_no_bg.resize((144, 149), Image.LANCZOS)
-        white_background = Image.new("RGB", (144, 149), (255, 255, 255))
-        white_background.paste(resized_face, (0, 0), resized_face)
-
-        return white_background
+        input_image = Image.open(image_path)
+        final_image = input_image.convert("RGB")
+        return final_image
     except Exception as e:
-        st.error(f"Error processing image at {image_path}: {str(e)}")
+        st.error(f"Error opening image at image_path: {str(e)}")
         return None
 
 def generate_card(data, template_path, image_folder, qr_folder):
@@ -74,13 +54,17 @@ def generate_card(data, template_path, image_folder, qr_folder):
         return None
     
     try:
-        template = Image.open(template_path).convert("RGB")
-        qr = Image.open(qr_path).convert("RGB").resize((161, 159))
+        preprocessed_pic = preprocessed_pic.resize((144, 145))
+    except Exception as e:
+        st.error(f"Error resizing image for ID: {pic_id}. Error: {str(e)}")
+        return None
 
-        # Ensure the dimensions for pasting are correct
-        preprocessed_pic = preprocessed_pic.resize((144, 149)).convert("RGB")
-        template.paste(preprocessed_pic, (27, 113))
-        template.paste(qr, (497, 109))
+    try:
+        template = Image.open(template_path)
+        qr = Image.open(qr_path).resize((161, 159))
+        
+        template.paste(preprocessed_pic, (27, 113, 171, 258))
+        template.paste(qr, (497, 109, 658, 268))
         
         draw = ImageDraw.Draw(template)
         
@@ -215,72 +199,115 @@ def display_pdf(pdf_path):
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
 
+def preprocess_images(input_folder):
+    temp_folder = os.path.join(input_folder, "temp")
+
+    # Create temporary folder for processing
+    if not os.path.exists(temp_folder):
+        os.makedirs(temp_folder)
+
+    # Initialize dlib's face detector
+    detector = dlib.get_frontal_face_detector()
+
+    # Define padding sizes in pixels
+    padding_size_top = 472  # Approximately 10 cm at passport photo resolution
+    padding_size_sides = 189  # Approximately 2 cm at passport photo resolution
+
+    # Iterate through all images in the folder
+    for filename in os.listdir(input_folder):
+        if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):
+            image_path = os.path.join(input_folder, filename)
+
+            # Load image using dlib
+            img = dlib.load_rgb_image(image_path)
+
+            # Detect faces in the image
+            faces = detector(img, 1)
+
+            if len(faces) == 0:
+                continue
+
+            # Assuming there's only one face per image
+            face = faces[0]
+
+            # Extract face coordinates
+            x, y, w, h = face.left(), face.top(), face.width(), face.height()
+
+            # Add padding to the image
+            top_padding = max(0, padding_size_top - y)
+            bottom_padding = max(0, padding_size_top - (img.shape[0] - (y + h)))
+            side_padding = max(0, padding_size_sides - x, padding_size_sides - (img.shape[1] - (x + w)))
+
+            # Add padding to the image
+            img_padded = cv2.copyMakeBorder(img, top_padding, bottom_padding, side_padding, side_padding,
+                                            cv2.BORDER_CONSTANT, value=[255, 255, 255])
+
+            # Convert to PIL image for further processing
+            img_pil = Image.fromarray(img_padded)
+
+            # Remove background
+            img_no_bg = remove(img_pil)
+
+            # Set a white background
+            img_no_bg_with_white_bg = Image.new("RGBA", img_no_bg.size, (255, 255, 255))
+            img_no_bg_with_white_bg.paste(img_no_bg, (0, 0), img_no_bg)
+
+            # Resize image to passport size (3.5 x 4.5 cm at 300 dpi)
+            img_resized = img_no_bg_with_white_bg.resize((413, 531))
+
+            # Save the processed image to the temporary folder
+            img_resized_path = os.path.join(temp_folder, filename)
+            img_resized.save(img_resized_path)
+
+    return temp_folder
+
 def main():
-    # Streamlit setup
-    st.title("Automatic ID Card Generation")
+    st.title("ID Card Generator")
 
-    st.sidebar.header("Options")
-    options = ["Upload Excel File", "View Sample Data"]
-    choice = st.sidebar.selectbox("Choose an option", options)
+    # File uploader for CSV
+    uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
+    template_path = st.text_input("Enter the template image path (JPEG/PNG):")
+    image_folder = st.text_input("Enter the folder path containing images:")
+    qr_folder = st.text_input("Enter the folder path containing QR codes:")
+    process_images = st.checkbox("Preprocess Images")
 
-    if choice == "Upload Excel File":
-        st.subheader("Upload Excel File")
-        excel_file = st.file_uploader("Choose an Excel file", type=["xlsx"])
+    if process_images and image_folder:
+        try:
+            temp_folder = preprocess_images(image_folder)
+            st.success(f"Images have been preprocessed and saved to {temp_folder}.")
+            image_folder = temp_folder  # Update image folder to temporary folder
+        except Exception as e:
+            st.error(f"Error preprocessing images: {str(e)}")
 
-        if excel_file is not None:
-            try:
-                df = pd.read_excel(excel_file)
-                st.success("Excel file uploaded successfully!")
-                st.dataframe(df.head())  # Display the first few rows of the dataframe
+    if uploaded_file and template_path and image_folder and qr_folder:
+        df = pd.read_csv(uploaded_file)
+        df = df.dropna(subset=['ID'])
 
-                template_path = st.text_input("Enter the path to the ID card template image")
-                image_folder = st.text_input("Enter the folder path containing the images")
-                qr_folder = st.text_input("Enter the folder path containing the QR codes")
-                output_pdf_path = st.text_input("Enter the path for the output PDF file", "output_id_cards.pdf")
+        selected_data = st.multiselect("Select Data", df.columns.tolist(), default=df.columns.tolist())
+        if selected_data:
+            selected_df = df[selected_data]
 
-                if st.button("Generate ID Cards"):
-                    if not template_path or not image_folder or not qr_folder or not output_pdf_path:
-                        st.error("Please provide all the required paths.")
+            # Display DataFrame with st_aggrid
+            AgGrid(selected_df)
+
+            if st.button("Generate ID Cards"):
+                images = []
+                for _, row in selected_df.iterrows():
+                    data = row.to_dict()
+                    card = generate_card(data, template_path, image_folder, qr_folder)
+                    if card:
+                        images.append(card)
+
+                if images:
+                    pdf_path = "generated_id_cards.pdf"
+                    pdf_path = create_pdf(images, pdf_path)
+
+                    if pdf_path:
+                        display_pdf(pdf_path)
                     else:
-                        try:
-                            generated_images = []
-                            for _, row in df.iterrows():
-                                card = generate_card(row, template_path, image_folder, qr_folder)
-                                if card:
-                                    img_path = f"{image_folder}/{row['ID']}_generated.jpg"
-                                    card.save(img_path)
-                                    generated_images.append(img_path)
-
-                            if generated_images:
-                                pdf_path = create_pdf(generated_images, output_pdf_path)
-                                if pdf_path:
-                                    st.success("ID cards generated and saved successfully!")
-                                    display_pdf(pdf_path)
-                                else:
-                                    st.error("Failed to create PDF.")
-                            else:
-                                st.error("No ID cards were generated. Please check the logs for more details.")
-                        except Exception as e:
-                            st.error(f"Error generating ID cards: {str(e)}")
-                            logging.error(f"Error generating ID cards: {str(e)}")
-
-            except Exception as e:
-                st.error(f"Error uploading Excel file: {str(e)}")
-                logging.error(f"Error uploading Excel file: {str(e)}")
-
-    elif choice == "View Sample Data":
-        st.subheader("Sample Data")
-        sample_data = {
-            "ID": [1, 2, 3],
-            "Name": ["John Doe", "Jane Smith", "Alice Johnson"],
-            "Division/Section": ["Advanced Information Technologies Group", "Societal Electronics Group", "Industrial Automation"],
-            "Internship Start Date": ["2024-01-01", "2024-02-01", "2024-03-01"],
-            "Internship End Date": ["2024-06-01", "2024-07-01", "2024-08-01"],
-            "Mobile": ["1234567890", "0987654321", "1122334455"],
-            "University": ["University A", "University B", "University C"]
-        }
-        df_sample = pd.DataFrame(sample_data)
-        AgGrid(df_sample)  # Display sample data using st_aggrid
+                        st.error("Failed to create PDF.")
+                else:
+                    st.error("No images to generate ID cards.")
 
 if __name__ == "__main__":
     main()
