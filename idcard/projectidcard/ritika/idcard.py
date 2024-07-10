@@ -14,8 +14,13 @@ import gspread
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
-import io
-import os
+import streamlit as st
+
+# Load the secrets from the uploaded file
+secrets = st.secrets["ceeriintern-440751c7bf05.json"]
+
+# Use the secrets to authenticate with the Google Drive API
+credentials = service_account.Credentials.from_service_account_info(secrets, scopes=['https://www.googleapis.com/auth/drive'])
 
 file_path = 'ceeriintern-440751c7bf05.json'
 if os.path.exists(file_path):
