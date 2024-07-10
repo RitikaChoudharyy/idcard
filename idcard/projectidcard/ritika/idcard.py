@@ -18,6 +18,60 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+import os
+from pydrive.auth import GoogleAuth
+from pydrive.drive import GoogleDrive
+import io
+from PIL import Image
+import requests
+
+# Function to authenticate and get Google Drive files
+def download_images_from_drive(folder_id, credentials_path, output_folder):
+    try:
+        gauth = GoogleAuth()
+        gauth.credentials = ServiceAccountCredentials.from_json_keyfile_name(credentials_path, ['https://www.googleapis.com/auth/drive'])
+        drive = GoogleDrive(gauth)
+
+        file_list = drive.ListFile({'q': f"'{folder_id}' in parents and trashed=false"}).GetList()
+
+        for file in file_list:
+            if file['mimeType'].startswith('image'):
+                img_name = os.path.join(output_folder, file['title'])
+                file.GetContentFile(img_name)
+
+        return True
+    except Exception as e:
+        print(f"Error downloading images: {str(e)}")
+        return False
+
+# Function to fetch images and generate ID cards
+def fetch_images_and_generate_cards(csv_data, template_path, output_folder, qr_folder, credentials_path, drive_folder_id):
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
+    if not os.path.exists(qr_folder):
+        os.makedirs(qr_folder)
+
+    # Download images from Google Drive
+    success = download_images_from_drive(drive_folder_id, credentials_path, output_folder)
+
+    if success:
+        # Process CSV data and generate cards
+        generated_cards = []
+
+        for index, data in csv_data.iterrows():
+            pic_id = str(data.get('ID', ''))
+            pic_path = os.path.join(output_folder, f"{pic_id}.jpg")
+
+            if os.path.exists(pic_path):
+                generated_card = generate_card(data, template_path, output_folder, qr_folder)
+                if generated_card:
+                    generated_cards.append(generated_card)
+
+        return generated_cards
+
+    return None
+
 
 
 # Authenticate and build Google Drive service
@@ -240,9 +294,13 @@ def main():
 
     # Update these paths according to your file locations
     template_path = "idcard/projectidcard/ritika/ST.png"
-    image_folder = "idcard/projectidcard/ritika/downloaded_images"
+    output_folder = "idcard/projectidcard/ritika/downloaded_images"  # Output folder for downloaded images
     qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
     output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"  # Default download path
+
+    # Google Drive API credentials path and folder ID
+    credentials_path = "path_to_your_service_account_json_file.json"
+    drive_folder_id = "your_google_drive_folder_id"
 
     # Sidebar for managing CSV
     st.sidebar.header('Manage CSV')
@@ -303,7 +361,7 @@ def main():
                 st.warning('Invalid input. Please enter a valid numeric ID.')
             else:
                 selected_data = csv_data[csv_data['ID'] == int(id_input)].iloc[0]
-                generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
+                generated_card = generate_card(selected_data, template_path, output_folder, qr_folder)
                 if generated_card:
                     st.image(generated_card, caption=f"Generated ID Card for ID: {id_input}")
 
@@ -315,7 +373,7 @@ def main():
 
             for id_input in id_list:
                 selected_data = csv_data[csv_data['ID'] == id_input].iloc[0]
-                generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
+                generated_card = generate_card(selected_data, template_path, output_folder, qr_folder)
                 if generated_card:
                     generated_cards.append(generated_card)
 
@@ -335,12 +393,7 @@ def main():
 
     elif generate_mode == 'All Students':
         st.info("Generating ID cards for all students...")
-        generated_cards = []
-
-        for index, data in csv_data.iterrows():
-            generated_card = generate_card(data, template_path, image_folder, qr_folder)
-            if generated_card:
-                generated_cards.append(generated_card)
+        generated_cards = fetch_images_and_generate_cards(csv_data, template_path, output_folder, qr_folder, credentials_path, drive_folder_id)
 
         if generated_cards:
             st.success(f"Generated {len(generated_cards)} ID cards.")
@@ -354,11 +407,5 @@ def main():
             else:
                 st.error("Failed to create PDF.")
 
-def get_binary_file_downloader_html(bin_file, file_label='File'):
-    with open(bin_file, 'rb') as f:
-        data = f.read()
-    bin_str = base64.b64encode(data).decode()
-    return f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
