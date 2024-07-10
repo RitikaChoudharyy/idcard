@@ -224,6 +224,7 @@ def create_pdf(images, pdf_path):
 
     except Exception as e:
         logging.error(f"Error creating PDF: {str(e)}")
+        st.error(f"Error creating PDF: {str(e)}")
         return None
 
 def display_pdf(pdf_path):
@@ -240,24 +241,9 @@ def display_pdf(pdf_path):
 def main():
     st.title("Automatic ID Card Generation")
 
-    # Update these paths according to your file locations
-    template_path = "idcard/projectidcard/ritika/ST.png"
-    image_folder = "idcard/projectidcard/ritika/downloaded_images"
-    qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
-    output_pdf_path_default = "generated_id_cards.pdf"
-
-    # Add a button to trigger image download
-    if st.button("Download Images from Google Drive"):
-        spreadsheet_id = os.environ.get('SPREADSHEET_ID')
-        if spreadsheet_id:
-            download_images_from_drive(spreadsheet_id, image_folder)
-            st.success("Images downloaded successfully!")
-        else:
-            st.error("Spreadsheet ID not found in environment variables.")
-
     # Section to upload CSV file
-    st.subheader('Upload CSV File')
-    csv_file = st.file_uploader("Choose a CSV file", type="csv")
+    st.sidebar.subheader('Upload CSV File')
+    csv_file = st.sidebar.file_uploader("Choose a CSV file", type="csv")
     if csv_file is not None:
         try:
             csv_data = pd.read_csv(csv_file)
@@ -266,9 +252,9 @@ def main():
             # Checkbox for modifying CSV in sidebar
             modified_csv = st.sidebar.checkbox('Modify CSV')
             if modified_csv:
-                st.subheader('Edit CSV')
+                st.sidebar.subheader('Edit CSV')
                 # Display editable DataFrame below the checkbox
-                with st.expander("View/Modify CSV"):
+                with st.sidebar.expander("View/Modify CSV"):
                     grid_response = AgGrid(
                         csv_data,
                         editable=True,
@@ -280,7 +266,7 @@ def main():
                     # Automatically save changes to CSV when data is edited
                     if st.session_state.get('csv_data_updated', False):
                         df_edited.to_csv(csv_file.name, index=False)
-                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
+                        st.sidebar.success(f'CSV file "{csv_file.name}" updated successfully.')
                         st.session_state['csv_data_updated'] = False  # Reset the flag
 
                     # Store initial state of csv_data in session state
@@ -293,12 +279,12 @@ def main():
                         st.session_state['csv_data'] = df_edited.copy()
 
                     # Button to manually save changes
-                    if st.button('Save Changes'):
+                    if st.sidebar.button('Save Changes'):
                         df_edited.to_csv(csv_file.name, index=False)
-                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
+                        st.sidebar.success(f'CSV file "{csv_file.name}" updated successfully.')
 
         except Exception as e:
-            st.error(f"Error reading CSV file: {str(e)}")
+            st.sidebar.error(f"Error reading CSV file: {str(e)}")
 
     # Section to generate ID cards
     st.subheader('Generate ID Cards')
