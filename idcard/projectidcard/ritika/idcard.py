@@ -12,6 +12,13 @@ from reportlab.lib.units import inch, mm
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 import io
+import os.path
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
 
 # Authenticate and build Google Drive service
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
