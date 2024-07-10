@@ -13,15 +13,79 @@ import logging
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
-# Function to preprocess image (convert to RGB)
+import streamlit as st
+import pandas as pd
+import os
+from PIL import Image, ImageDraw, ImageFont
+import textwrap
+from fpdf import FPDF
+import base64
+from st_aggrid import AgGrid
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.units import inch, mm
+import logging
+import dlib
+import cv2
+import numpy as np
+from PIL import Image, ImageChops
+from rembg import remove
+
+logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
+
+# Function to preprocess image using dlib and rembg
 def preprocess_image(image_path):
     try:
-        input_image = Image.open(image_path)
-        final_image = input_image.convert("RGB")
-        return final_image
+        image = cv2.imread(image_path)
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+        # Initialize dlib's face detector
+        detector = dlib.get_frontal_face_detector()
+        faces = detector(gray)
+
+        # Define padding sizes in pixels
+        padding_size_top = 415  # Approximately 5 cm at passport photo resolution
+        padding_size_sides = 186  # Approximately 1 cm at passport photo resolution
+
+        for i, face in enumerate(faces):
+            # Get the coordinates of the face
+            x, y, w, h = (face.left(), face.top(), face.width(), face.height())
+
+            # Calculate new bounding box with padding
+            x1 = max(x - padding_size_sides, 0)
+            y1 = max(y - padding_size_top, 0)
+            x2 = min(x + w + padding_size_sides, image.shape[1])
+            y2 = min(y + h + padding_size_sides, image.shape[0])
+
+            # Extract the face region with padding
+            face_with_padding = image[y1:y2, x1:x2]
+
+            # Convert the face region to PIL Image for background removal
+            face_with_padding_pil = Image.fromarray(cv2.cvtColor(face_with_padding, cv2.COLOR_BGR2RGB))
+
+            # Remove background using rembg
+            face_no_bg = remove(face_with_padding_pil)
+
+            # Composite the original image and the image with removed background
+            face_with_bg = ImageChops.composite(face_with_padding_pil, face_no_bg, face_no_bg)
+
+            # Create a white background image
+            white_background = Image.new("RGB", (144, 149), (255, 255, 255))  # Change to white background
+
+            # Resize the face image to passport size (144x149 pixels)
+            resized_face = face_with_bg.resize((144, 149), Image.LANCZOS)
+
+            # Paste the face image onto the white background
+            white_background.paste(resized_face, (0, 0), resized_face)
+
+            return white_background.convert("RGB")
+
     except Exception as e:
-        st.error(f"Error opening image at image_path: {str(e)}")
+        st.error(f"Error preprocessing image at {image_path}: {str(e)}")
         return None
+
+
+# Replace generate_card function with your existing implementation
 
 def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
@@ -315,12 +379,3 @@ def main():
                 st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
             else:
                 st.error("Failed to create PDF.")
-
-def get_binary_file_downloader_html(bin_file, file_label='File'):
-    with open(bin_file, 'rb') as f:
-        data = f.read()
-    bin_str = base64.b64encode(data).decode()
-    return f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'
-
-if __name__ == "__main__":
-    main()
