@@ -9,9 +9,34 @@ from st_aggrid import AgGrid
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
-import logging
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+import io
 
-logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
+# Authenticate and build Google Drive service
+SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+SERVICE_ACCOUNT_FILE = 'your_service_account_credentials.json'  # Update with your service account JSON file
+creds = None
+try:
+    creds = service_account.Credentials.from_service_account_file(
+        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+    drive_service = build('drive', 'v3', credentials=creds)
+except Exception as e:
+    st.error(f"Error authenticating Google Drive API: {str(e)}")
+
+# Function to download image from Google Drive
+def download_image_from_drive(file_id, image_path):
+    try:
+        request = drive_service.files().get_media(fileId=file_id)
+        fh = io.FileIO(image_path, 'wb')
+        downloader = io.BytesIO()
+        downloader.write(request.execute())
+        fh.write(downloader.getvalue())
+        fh.close()
+        return True
+    except Exception as e:
+        st.error(f"Error downloading image from Google Drive: {str(e)}")
+        return False
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
@@ -23,6 +48,7 @@ def preprocess_image(image_path):
         st.error(f"Error opening image at image_path: {str(e)}")
         return None
 
+# Function to generate card
 def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
@@ -30,15 +56,20 @@ def generate_card(data, template_path, image_folder, qr_folder):
         return None
     
     pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
-    st.write(f"Looking for image at path: {pic_path}")
-    
     if not os.path.exists(pic_path):
-        st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
-        return None
+        st.info(f"Image not found locally for ID: {pic_id}. Attempting to download from Google Drive...")
+        image_file_id = data.get('Google Drive File ID', '')  # Adjust column name as per your CSV
+        if not image_file_id:
+            st.error(f"No Google Drive File ID found for ID: {pic_id}. Cannot download image.")
+            return None
+        
+        if download_image_from_drive(image_file_id, pic_path):
+            st.success(f"Image downloaded successfully for ID: {pic_id}")
+        else:
+            st.error(f"Failed to download image for ID: {pic_id}.")
+            return None
     
     qr_path = os.path.join(qr_folder, f"{pic_id}.png")
-    st.write(f"Looking for QR code at path: {qr_path}")
-    
     if not os.path.exists(qr_path):
         st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
         return None
@@ -134,7 +165,6 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
-
 def create_pdf(images, pdf_path):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
@@ -181,9 +211,8 @@ def create_pdf(images, pdf_path):
         return pdf_path  # Return the path where the PDF is saved
 
     except Exception as e:
-        logging.error(f"Error creating PDF: {str(e)}")
+        st.error(f"Error creating PDF: {str(e)}")
         return None
-
 
 def display_pdf(pdf_path):
     try:
@@ -195,7 +224,7 @@ def display_pdf(pdf_path):
         st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
-        
+
 def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
@@ -321,5 +350,6 @@ def get_binary_file_downloader_html(bin_file, file_label='File'):
         data = f.read()
     bin_str = base64.b64encode(data).decode()
     return f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'
+
 if __name__ == '__main__':
     main()
