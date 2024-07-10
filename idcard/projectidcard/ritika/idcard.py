@@ -1,16 +1,17 @@
-import streamlit as st
-import pandas as pd
 import os
+import base64
+import pandas as pd
+import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
 import textwrap
 from fpdf import FPDF
-import base64
 from st_aggrid import AgGrid
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+
 
 
 # Function to preprocess image (convert to RGB)
@@ -24,7 +25,7 @@ def preprocess_image(image_path):
         return None
 
 # Function to generate card
-def generate_card(data, template_path, image_folder, qr_folder):
+def generate_card(data, template_path, image_folder, qr_folder, drive_service):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
         st.warning(f"Skipping record with missing ID: {data}")
@@ -38,7 +39,7 @@ def generate_card(data, template_path, image_folder, qr_folder):
             st.error(f"No Google Drive File ID found for ID: {pic_id}. Cannot download image.")
             return None
         
-        if download_image_from_drive(image_file_id, pic_path):
+        if download_image_from_drive(image_file_id, pic_path, drive_service):
             st.success(f"Image downloaded successfully for ID: {pic_id}")
         else:
             st.error(f"Failed to download image for ID: {pic_id}.")
@@ -103,6 +104,22 @@ def generate_card(data, template_path, image_folder, qr_folder):
     except Exception as e:
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
+
+# Function to download image from Google Drive
+def download_image_from_drive(file_id, destination_path, drive_service):
+    try:
+        request = drive_service.files().get_media(fileId=file_id)
+        fh = open(destination_path, 'wb')
+        downloader = MediaIoBaseDownload(fh, request)
+        done = False
+        while not done:
+            status, done = downloader.next_chunk()
+            print(f"Download {int(status.progress() * 100)}%.")
+        fh.close()
+        return True
+    except Exception as e:
+        st.error(f"Error downloading image from Google Drive: {str(e)}")
+        return False
 
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
@@ -214,6 +231,9 @@ def main():
     credentials_path = "path_to_your_service_account_json_file.json"
     drive_folder_id = "your_google_drive_folder_id"
 
+    # Authenticate with Google Drive API
+    drive_service = authenticate_google_drive(credentials_path)
+
     # Sidebar for managing CSV
     st.sidebar.header('Manage CSV')
 
@@ -273,7 +293,7 @@ def main():
                 st.warning('Invalid input. Please enter a valid numeric ID.')
             else:
                 selected_data = csv_data[csv_data['ID'] == int(id_input)].iloc[0]
-                generated_card = generate_card(selected_data, template_path, output_folder, qr_folder)
+                generated_card = generate_card(selected_data, template_path, output_folder, qr_folder, drive_service)
                 if generated_card:
                     st.image(generated_card, caption=f"Generated ID Card for ID: {id_input}")
 
@@ -281,28 +301,13 @@ def main():
         ids_input = st.text_input('Enter comma-separated IDs:')
         if st.button('Generate ID Cards'):
             id_list = [int(id.strip()) for id in ids_input.split(',') if id.strip().isdigit()]
-            generated_cards = []
-
             for id_input in id_list:
                 selected_data = csv_data[csv_data['ID'] == id_input].iloc[0]
-                generated_card = generate_card(selected_data, template_path, output_folder, qr_folder)
+                generated_card = generate_card(selected_data, template_path, output_folder, qr_folder, drive_service)
                 if generated_card:
-                    generated_cards.append(generated_card)
+                    st.image(generated_card, caption=f"Generated ID Card for ID: {id_input}")
 
-            if generated_cards:
-                st.success(f"Generated {len(generated_cards)} ID cards.")
-                for i, card in enumerate(generated_cards):
-                    st.image(card, caption=f"Generated ID Card for ID: {id_list[i]}")
-
-                # Create PDF of generated ID cards
-                pdf_path = create_pdf(generated_cards, output_pdf_path_default)
-                if pdf_path:
-                    st.success(f"PDF created successfully.")
-                    # Display download button for the PDF
-                    st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
-                else:
-                    st.error("Failed to create PDF.")
-
+    
     elif generate_mode == 'All Students':
         st.info("Generating ID cards for all students...")
         generated_cards = fetch_images_and_generate_cards(csv_data, template_path, output_folder, qr_folder, credentials_path, drive_folder_id)
@@ -318,6 +323,25 @@ def main():
                 st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
             else:
                 st.error("Failed to create PDF.")
+    
+
+    # Section to download generated ID cards as PDF
+    st.subheader('Download ID Cards as PDF')
+    if st.button('Download as PDF'):
+        generate_pdf(csv_data, template_path, output_folder, qr_folder, output_pdf_path_default, drive_service)
+
+# Function to authenticate with Google Drive API
+def authenticate_google_drive(credentials_path):
+    scopes = ['https://www.googleapis.com/auth/drive']
+    try:
+        credentials = service_account.Credentials.from_service_account_file(credentials_path, scopes=scopes)
+        drive_service = build('drive', 'v3', credentials=credentials)
+        return drive_service
+    except Exception as e:
+        st.error(f"Error authenticating with Google Drive API: {str(e)}")
+        return None
+
+
 
 if __name__ == "__main__":
     main()
