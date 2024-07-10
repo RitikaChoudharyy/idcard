@@ -19,25 +19,30 @@ import json
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
+# Function to get credentials
 def get_credentials():
-    # Get the JSON credentials from the environment variable
-    creds_json = os.environ.get('GOOGLE_CREDENTIALS')
-    if creds_json:
-        creds_dict = json.loads(creds_json)
-        creds = service_account.Credentials.from_service_account_info(
-            creds_dict,
-            scopes=['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets.readonly']
-        )
-        return creds
-    else:
-        st.error("Google credentials not found in environment variables.")
-        return None
+    creds_dict = {
+      "type": "service_account",
+      "project_id": "ceeriintern",
+      "private_key_id": "440751c7bf053828b027d497e5aa1c31bb4e9157",
+      "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDm2sEUiWcwqJWj\nVkXbspBHha2M+s/RXDMUu0IM/ryivmzoDJFh3DhsWLfNZsi3YgYz5cGp1SZJsjYd\nZklRDLIl5n9dHTmzWkb6ZWQ4RsKzvLzC8RoBz7ZbLumMTBJ4zE5+ynYnaFh5cDAW\n2FzL/+XA/8m8rZA4agSM46wtjavAg4wiWhX5XASMYjlURHSdufCEAkqgIuUwA9NW\nJUOSU2+8T3y+iadJkbugxCQmGzAFTpCIfX9VIsLUMfNDWsZccAK8HTlSWNZ8sfNC\nd3RByowAX7WqUrIM3EEIV7fYz5jqgqFBd95phXtPpmX+7QBc7ynyyTaXfBhoiDF7\nOXf1dNmZAgMBAAECggEADNEPUCsSug5aBG/5P+nJfdcLnByephJ22YtN7vfDlEt7\nM2TjO2olDcrdJX+z3A6Kpp32Yw3s6sGEpJw1rNTGHTmPT6WcOvtjnmo7pq4zCBSN\n7ErDdV9JUgWoPLxKeD9rijmGVsjBxLg4S0Rm3oKOCGmLEzkVnTQxnXrUZ9EKPI1W\nGKxgchMgW7evyaK8bvRezyz76DyqkEuHJl6zI38Vh5VIqguRaD7J7ybSDHWTX+HS\n5+49NgoTMoaxq4nOtUcSUXxKpYDDnmVuY72Q9Q3RRlV39WaVIcg39R9Mcbk232zj\nXS5yhlhmfl044KXLcWqQQQzh74TJ5gEoSQBq2DYQKwKBgQD+Jup3KmXFCSeD+h51\n1cVKGLhepxAuZEn7gDUx2336ET2RbFoUQ1hgtUjaNpKi+W4xoUUu1tQm6ChQKdYT\nKG7SA8kHqV546Wyxd0k3n0pj/LNBVr33wa6flgPbnZoKyZAB6TIrKWg5HL2jkZm+\nsXcVMkoAs1OI3VMoFFZYTVQCewKBgQDoiHjLNUsj+mnrMGON4I9Qpg2DVYTrkUlg\n784e24KcSIu6VAi0Wi7t8D+BSct5R1DImWShYuHaZLXcfvolfquyoh98bjwbbUX5\nxP39+M+1dbU6iTn/dzu4gBCOusshhTDDkxr6XMpsLzNAltwiB1tl3hK368bNnVsU\nk+cKFTDR+wKBgQDUpFjOJXIKvlMKkE3GB3rPOQmhYCQgvJZN0AIx2dR4Us5xivd/\nNq2OFH+E294qb4lsCuOogeP1PY7lK2vKkazPGI2tVF8PyTXA8e4XlLYYHEkapOnC\njpF9QnWt3RoSZnyPrL3l8PobttlQLrU1IKRi3rWeCmwc+hjmUsW/kct1WwKBgQDa\n1ly/+VbO9EMsSOzYQAcAQlYjTJ98Rs4FAYo9Nh50UD3XzHAos1rJKLnLRhTM/VXE\ng7/VtkaRjwgsDAAEu3KA+dyh8Oh2c19QkZjrpHZt8unsveqsRp0YpMVwXdD/qeZb\nmJziE+OY7s7QMWnYSI42j0mUd7swFK/77LmZnpnEcwKBgQDAly4Egg+ylOVvcHxC\nM90Wn8LseSNkFrKv9KLURJWaqkJG0vB7NFB8j4l9/wO7dAQsAoQzmmIpHVujx0O+\nMtudU8Y2+FNgVHRtg2XK+7cq53VTDjMykWzm2PmPJDHGW2NBUMF4Z0ntMfjH58iG\nUqcjAQSQ68IxAWn4ptc4QdInHg==\n-----END PRIVATE KEY-----\n",
+      "client_email": "ceeriintern@ceeriintern.iam.gserviceaccount.com",
+      "client_id": "109310078454904722620",
+      "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+      "token_uri": "https://oauth2.googleapis.com/token",
+      "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+      "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/ceeriintern%40ceeriintern.iam.gserviceaccount.com"
+    }
+
+    creds = service_account.Credentials.from_service_account_info(
+        creds_dict,
+        scopes=['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets.readonly']
+    )
+    return creds
+
 
 def download_images_from_drive(spreadsheet_id, image_folder):
     credentials = get_credentials()
-    if not credentials:
-        return
-
     gc = gspread.authorize(credentials)
     drive_service = build('drive', 'v3', credentials=credentials)
 
