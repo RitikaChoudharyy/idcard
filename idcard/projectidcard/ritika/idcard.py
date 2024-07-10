@@ -247,7 +247,7 @@ def main():
     st.title("Automatic ID Card Generation")
 
     # Section to upload CSV file in column 1
-    col1, col2 = st.beta_columns([1, 2])
+    col1, col2 = st.columns([1, 2])
     with col1:
         st.sidebar.subheader('Upload CSV File')
         csv_file = st.sidebar.file_uploader("Choose a CSV file", type="csv")
@@ -334,6 +334,28 @@ def main():
                     display_pdf(pdf_path)
                 else:
                     st.error("Failed to create PDF.")
+
+    elif generate_mode == 'All Students':
+        st.info("Generating ID cards for all students...")
+        generated_cards = []
+
+        for index, data in csv_data.iterrows():
+            generated_card = generate_card(data, template_path, image_folder, qr_folder)
+            if generated_card:
+                generated_cards.append(generated_card)
+
+        if generated_cards:
+            st.success(f"Generated {len(generated_cards)} ID cards.")
+
+            # Create PDF of generated ID cards
+            pdf_path = create_pdf(generated_cards, output_pdf_path_default)
+            if pdf_path:
+                st.success(f"PDF created successfully.")
+                # Display download button for the PDF
+                display_pdf(pdf_path)
+            else:
+                st.error("Failed to create PDF.")
+
 
     elif generate_mode == 'All Students':
         st.info("Generating ID cards for all students...")
