@@ -1,22 +1,23 @@
+import streamlit as st
+import pandas as pd
 import os
+from PIL import Image, ImageDraw, ImageFont
+import textwrap
+from fpdf import FPDF
+import base64
+from st_aggrid import AgGrid
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.units import inch, mm
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 import io
 import gspread
 
-# Importing required libraries
-import os
-import base64
-import pandas as pd
-import streamlit as st
-from PIL import Image, ImageDraw, ImageFont
-import textwrap
-from fpdf import FPDF
-from st_aggrid import AgGrid
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.units import inch, mm
+# Set up logging
+import logging
+logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
@@ -28,28 +29,23 @@ def preprocess_image(image_path):
         st.error(f"Error opening image at image_path: {str(e)}")
         return None
 
-# Function to generate card
-def generate_card(data, template_path, image_folder, qr_folder, drive_service):
+# Function to generate card using fetched image and data
+def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
         st.warning(f"Skipping record with missing ID: {data}")
         return None
     
     pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
+    st.write(f"Looking for image at path: {pic_path}")
+    
     if not os.path.exists(pic_path):
-        st.info(f"Image not found locally for ID: {pic_id}. Attempting to download from Google Drive...")
-        image_file_id = data.get('Google Drive File ID', '')  # Adjust column name as per your CSV
-        if not image_file_id:
-            st.error(f"No Google Drive File ID found for ID: {pic_id}. Cannot download image.")
-            return None
-        
-        if download_image_from_drive(image_file_id, pic_path, drive_service):
-            st.success(f"Image downloaded successfully for ID: {pic_id}")
-        else:
-            st.error(f"Failed to download image for ID: {pic_id}.")
-            return None
+        st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
+        return None
     
     qr_path = os.path.join(qr_folder, f"{pic_id}.png")
+    st.write(f"Looking for QR code at path: {qr_path}")
+    
     if not os.path.exists(qr_path):
         st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
         return None
@@ -109,22 +105,6 @@ def generate_card(data, template_path, image_folder, qr_folder, drive_service):
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
 
-# Function to download image from Google Drive
-def download_image_from_drive(file_id, destination_path, drive_service):
-    try:
-        request = drive_service.files().get_media(fileId=file_id)
-        fh = open(destination_path, 'wb')
-        downloader = MediaIoBaseDownload(fh, request)
-        done = False
-        while not done:
-            status, done = downloader.next_chunk()
-            print(f"Download {int(status.progress() * 100)}%.")
-        fh.close()
-        return True
-    except Exception as e:
-        st.error(f"Error downloading image from Google Drive: {str(e)}")
-        return False
-
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
     words = text.split()
@@ -161,53 +141,7 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
-# Function to fetch images and generate cards
-def fetch_images_and_generate_cards(csv_data, template_path, output_folder, qr_folder, credentials_path, drive_folder_id):
-    try:
-        # Authenticate with Google Drive API
-        drive_service = authenticate_google_drive(credentials_path)
-        if not drive_service:
-            st.error("Failed to authenticate with Google Drive API.")
-            return None
-
-        generated_cards = []
-        for _, data in csv_data.iterrows():
-            generated_card = generate_card(data, template_path, output_folder, qr_folder, drive_service)
-            if generated_card:
-                generated_cards.append(generated_card)
-            else:
-                st.warning(f"Failed to generate card for ID: {data['ID']}")
-
-        return generated_cards
-
-    except Exception as e:
-        st.error(f"Error fetching images and generating cards: {str(e)}")
-        return None
-
-# Function to generate PDF from generated cards
-def generate_pdf(data, template_path, image_folder, qr_folder, output_pdf_path, drive_service):
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    for _, data in data.iterrows():
-        generated_card = generate_card(data, template_path, image_folder, qr_folder, drive_service)
-        if generated_card:
-            pdf.add_page()
-            pdf.image(generated_card, x=10, y=10, w=185, h=300)
-    pdf.output(output_pdf_path)
-    st.success(f"PDF generated successfully: {output_pdf_path}")
-
-# Function to authenticate with Google Drive API
-def authenticate_google_drive(credentials_path):
-    scopes = ['https://www.googleapis.com/auth/drive']
-    try:
-        credentials = service_account.Credentials.from_service_account_file(credentials_path, scopes=scopes)
-        drive_service = build('drive', 'v3', credentials=credentials)
-        return drive_service
-    except Exception as e:
-        st.error(f"Error authenticating with Google Drive API: {str(e)}")
-        return None
-
-# Function to create PDF from generated images
+# Function to create PDF from generated ID cards
 def create_pdf(images, pdf_path):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
@@ -220,76 +154,186 @@ def create_pdf(images, pdf_path):
         spacing_x = 1.5 * mm
         spacing_y = 1.5 * mm
 
-        x_positions = [spacing_x + (image_width + spacing_x) * i for i in range(grid_width)]
-        y_positions = [spacing_y + (image_height + spacing_y) * i for i in range(grid_height)]
+        # Calculate total width and height of the grid
+        total_width = grid_width * (image_width + spacing_x)
+        total_height = grid_height * (image_height + spacing_y)
 
-        # Iterate through the images and place them on the PDF
-        for idx, image in enumerate(images):
-            x = x_positions[idx % grid_width]
-            y = letter[1] - y_positions[idx // grid_width] - image_height
-            c.drawImage(image, x, y, width=image_width, height=image_height, preserveAspectRatio=True, anchor='c')
+        # Track the current page
+        current_page = 0
 
-            if (idx + 1) % (grid_width * grid_height) == 0 and idx != 0:
+        for i, image in enumerate(images):
+            col = i % grid_width
+            row = i // grid_width
+
+            # Check if the current page is filled and there are more images to be processed
+            if i > 0 and i % (grid_width * grid_height) == 0:
+                # Start a new page
+                current_page += 1
                 c.showPage()
 
-        c.save()
-        st.success(f"PDF file saved successfully: {pdf_path}")
-    except Exception as e:
-        st.error(f"Error creating PDF file: {str(e)}")
+            # Calculate the starting position for each new page
+            start_x = (letter[0] - total_width) / 2
+            start_y = (letter[1] - total_height) / 2 - current_page * total_height
 
-# Function to fetch data from Google Sheet
-def fetch_data_from_google_sheet(credentials_path, sheet_name):
-    try:
-        scopes = ['https://www.googleapis.com/auth/spreadsheets']
-        credentials = service_account.Credentials.from_service_account_file(credentials_path, scopes=scopes)
-        gc = gspread.authorize(credentials)
-        sheet = gc.open(sheet_name).sheet1  # Open the specified sheet
-        
-        # Load all values from the sheet
-        data = sheet.get_all_values()
-        
-        # Convert to DataFrame
-        df = pd.DataFrame(data[1:], columns=data[0])
-        
-        return df
+            # Calculate the position for the current image on the current page
+            x = start_x + col * (image_width + spacing_x)
+            y = start_y + row * (image_height + spacing_y)
+
+            # Draw the image on the canvas
+            c.drawInlineImage(image, x, y, width=image_width, height=image_height)
+
+        # Save the PDF to the specified path
+        c.save()
+
+        return pdf_path  # Return the path where the PDF is saved
+
     except Exception as e:
-        st.error(f"Error fetching data from Google Sheet: {str(e)}")
+        logging.error(f"Error creating PDF: {str(e)}")
         return None
 
-# Main function to execute the Streamlit app
+# Function to display download link for generated PDF
+def display_pdf(pdf_path):
+    try:
+        with open(pdf_path, "rb") as f:
+            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+            pdf_display = f'<a href="data:application/pdf;base64,{base64_pdf}" download="generated_id_cards.pdf">Download PDF</a>'
+            st.markdown(pdf_display, unsafe_allow_html=True)
+    except FileNotFoundError:
+        st.error(f"PDF file '{pdf_path}' not found.")
+    except Exception as e:
+        st.error(f"Error displaying PDF: {str(e)}")
+
+# Function to download images from Google Drive using file URLs in Google Sheet
+def download_images_from_drive(credentials_path, sheet_id, output_folder):
+    try:
+        # Authenticate with Google Drive API using service account credentials
+        credentials = service_account.Credentials.from_service_account_file(credentials_path, scopes=['https://www.googleapis.com/auth/drive'])
+        drive_service = build('drive', 'v3', credentials=credentials)
+
+        # Connect to the Google Sheet using gspread
+        gc = gspread.authorize(credentials)
+        worksheet = gc.open_by_key(sheet_id).sheet1  # Open the specified sheet
+
+        # Get image URLs from the second column (skip header row)
+        image_urls = worksheet.col_values(2)[1:]
+
+        # Ensure the output folder exists
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
+
+        for index, url in enumerate(image_urls):
+            try:
+                # Extract file ID from URL
+                file_id = url.split("/")[-2]
+
+                # Request the file metadata and download
+                request = drive_service.files().get_media(fileId=file_id)
+                fh = io.BytesIO()
+                downloader = MediaIoBaseDownload(fh, request)
+                done = False
+                while not done:
+                    status, done = downloader.next_chunk()
+
+                # Save the downloaded image
+                image_path = os.path.join(output_folder, f"{index + 1}.jpg")
+                with open(image_path, 'wb') as f:
+                    f.write(fh.getvalue())
+
+                st.write(f"Downloaded image {index + 1}/{len(image_urls)}")
+            except Exception as e:
+                st.error(f"Error downloading image from URL {url}: {str(e)}")
+                logging.error(f"Error downloading image from URL {url}: {str(e)}")
+
+    except Exception as e:
+        st.error(f"Error downloading images from Google Drive: {str(e)}")
+        logging.error(f"Error downloading images from Google Drive: {str(e)}")
+
+# Main Streamlit app code
 def main():
-    st.title("ID Card Generation App")
+    st.title("Intern ID Card Generator")
+
+    # Sidebar - file upload and generation options
+    st.sidebar.header("Generate ID Cards")
+
+    # Select an option
+    generation_option = st.sidebar.selectbox("Select an option", ("Generate ID Cards", "Download Images"))
+
+    if generation_option == "Generate ID Cards":
+        st.subheader("Generate ID Cards")
+
+        # Select template and folders
+        template_path = st.sidebar.file_uploader("Upload Template", type=["jpg", "jpeg", "png"])
+        image_folder = st.sidebar.text_input("Image Folder Path")
+        qr_folder = st.sidebar.text_input("QR Folder Path")
+
+        # Check if template and folders are selected
+        if template_path and image_folder and qr_folder:
+            # Load data from Google Sheet
+            credentials_path = st.sidebar.file_uploader("Upload Google Service Account Credentials", type=["json"])
+            sheet_id = st.sidebar.text_input("Google Sheet ID")
+            if credentials_path and sheet_id:
+                try:
+                    output_folder = "downloaded_images"
+                    download_images_from_drive(credentials_path, sheet_id, output_folder)
+                except Exception as e:
+                    st.error(f"Error downloading images: {str(e)}")
+
+            # Display grid with data
+            if os.path.exists(image_folder) and os.path.exists(qr_folder):
+                data_path = st.sidebar.file_uploader("Upload Data File", type=["csv", "xlsx"])
+                if data_path:
+                    try:
+                        data = pd.read_excel(data_path)  # Adjust if CSV is used
+                        AgGrid(data)
+
+                        # Generate ID cards
+                        st.subheader("Generated ID Cards")
+                        images = []
+                        for _, row in data.iterrows():
+                            card = generate_card(row, template_path, image_folder, qr_folder)
+                            if card:
+                                images.append(card)
+
+                        # Create PDF
+                        pdf_path = "generated_id_cards.pdf"
+                        pdf_path = create_pdf(images, pdf_path)
+                        if pdf_path:
+                            st.success(f"PDF generated successfully! Click below to download.")
+                            display_pdf(pdf_path)
+
+                    except Exception as e:
+                        st.error(f"Error processing data file: {str(e)}")
+                        logging.error(f"Error processing data file: {str(e)}")
+
+            else:
+                st.warning("Please provide valid paths for Image and QR folders.")
+        
+        else:
+            st.warning("Please upload Template and provide valid paths for Image and QR folders.")
     
-    st.sidebar.header("Settings")
-    sheet_name = st.sidebar.text_input("Google Sheet Name", "Sheet1")
-    credentials_path = st.sidebar.file_uploader("Upload Google Service Account JSON")
-    template_path = st.sidebar.file_uploader("Upload Template Image", type=["jpg", "jpeg", "png"])
-    output_folder = st.sidebar.text_input("Output Image Folder Path", "./output_images")
-    qr_folder = st.sidebar.text_input("QR Codes Folder Path", "./qr_codes")
-    pdf_output_path = st.sidebar.text_input("Output PDF Path", "./output.pdf")
-    drive_folder_id = st.sidebar.text_input("Google Drive Folder ID")
-    
-    if st.sidebar.button("Generate ID Cards"):
-        # Check for required inputs
-        if not all([sheet_name, credentials_path, template_path, output_folder, qr_folder, pdf_output_path, drive_folder_id]):
-            st.warning("Please fill all the fields and upload necessary files.")
-            return
-        
-        # Fetch data from Google Sheet
-        csv_data = fetch_data_from_google_sheet(credentials_path, sheet_name)
-        if csv_data is None:
-            st.error("Failed to fetch data from Google Sheet.")
-            return
-        
-        # Generate QR codes and save to folder
-        generate_qr_codes(csv_data, qr_folder)
-        
-        # Generate ID cards and save to folder
-        generated_cards = fetch_images_and_generate_cards(csv_data, template_path, output_folder, qr_folder, credentials_path, drive_folder_id)
-        
-        # Generate PDF from generated images
-        if generated_cards:
-            create_pdf(generated_cards, pdf_output_path)
+    elif generation_option == "Download Images":
+        st.subheader("Download Images from Google Drive")
+        st.markdown(
+            """
+            To download images from Google Drive, please upload your Google Service Account 
+            credentials JSON file and provide the Google Sheet ID containing the image URLs.
+            """
+        )
+        credentials_path = st.file_uploader("Upload Google Service Account Credentials", type=["json"])
+        sheet_id = st.text_input("Google Sheet ID")
+        output_folder = "downloaded_images"
+
+        if credentials_path and sheet_id:
+            download_button = st.button("Download Images")
+
+            if download_button:
+                try:
+                    download_images_from_drive(credentials_path, sheet_id, output_folder)
+                except Exception as e:
+                    st.error(f"Error downloading images: {str(e)}")
+
+        else:
+            st.warning("Please upload Google Service Account Credentials and provide Google Sheet ID.")
 
 if __name__ == "__main__":
     main()
