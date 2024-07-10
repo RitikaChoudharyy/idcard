@@ -1,17 +1,18 @@
-import os
-import dlib
-import cv2
-import numpy as np
-from PIL import Image, ImageDraw, ImageFont, ImageChops
-from rembg import remove
 import streamlit as st
 import pandas as pd
-from st_aggrid import AgGrid
+import os
+from PIL import Image, ImageDraw, ImageFont
+import textwrap
+import cv2
+import numpy as np
+from rembg import remove
+import dlib
 from fpdf import FPDF
+import base64
+from st_aggrid import AgGrid
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
-import base64
 import logging
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
@@ -210,96 +211,76 @@ def display_pdf(pdf_path):
             pdf_display = f'<a href="data:application/pdf;base64,{base64_pdf}" download="generated_id_cards.pdf">Download PDF</a>'
             st.markdown(pdf_display, unsafe_allow_html=True)
     except FileNotFoundError:
-        st.error("Error: PDF file not found.")
+        st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
-        st.error(f"An error occurred: {str(e)}")
+        st.error(f"Error displaying PDF: {str(e)}")
 
 def main():
-    st.title('ID Card Generator')
+    # Streamlit setup
+    st.title("Automatic ID Card Generation")
 
-    # Adding a sidebar for navigation
-    st.sidebar.title("Navigation")
-    options = ["Single ID Card", "Multiple ID Cards (comma-separated IDs)", "Generate ID Cards from CSV"]
+    st.sidebar.header("Options")
+    options = ["Upload Excel File", "View Sample Data"]
     choice = st.sidebar.selectbox("Choose an option", options)
 
-    template_path = "template.jpg"
-    image_folder = "images"
-    qr_folder = "qr"
+    if choice == "Upload Excel File":
+        st.subheader("Upload Excel File")
+        excel_file = st.file_uploader("Choose an Excel file", type=["xlsx"])
 
-    if choice == "Single ID Card":
-        st.header("Generate a Single ID Card")
-        ID = st.text_input("Enter ID")
-        if st.button("Generate ID Card"):
-            if ID:
-                data = {
-                    'ID': ID,
-                    'Division/Section': st.text_input("Division/Section"),
-                    'Name': st.text_input("Name"),
-                    'University': st.text_input("University"),
-                    'Internship Start Date': st.text_input("Internship Start Date"),
-                    'Internship End Date': st.text_input("Internship End Date"),
-                    'Mobile': st.text_input("Mobile")
-                }
-                card = generate_card(data, template_path, image_folder, qr_folder)
-                if card:
-                    st.image(card)
-            else:
-                st.error("Please enter an ID")
+        if excel_file is not None:
+            try:
+                df = pd.read_excel(excel_file)
+                st.success("Excel file uploaded successfully!")
+                st.dataframe(df.head())  # Display the first few rows of the dataframe
 
-    elif choice == "Multiple ID Cards (comma-separated IDs)":
-        st.header("Generate Multiple ID Cards")
-        IDs = st.text_input("Enter comma-separated IDs")
-        if st.button("Generate ID Cards"):
-            ids_list = [ID.strip() for ID in IDs.split(",") if ID.strip()]
-            cards = []
-            for ID in ids_list:
-                data = {
-                    'ID': ID,
-                    'Division/Section': st.text_input("Division/Section"),
-                    'Name': st.text_input("Name"),
-                    'University': st.text_input("University"),
-                    'Internship Start Date': st.text_input("Internship Start Date"),
-                    'Internship End Date': st.text_input("Internship End Date"),
-                    'Mobile': st.text_input("Mobile")
-                }
-                card = generate_card(data, template_path, image_folder, qr_folder)
-                if card:
-                    st.image(card)
-                    cards.append(card)
+                template_path = st.text_input("Enter the path to the ID card template image")
+                image_folder = st.text_input("Enter the folder path containing the images")
+                qr_folder = st.text_input("Enter the folder path containing the QR codes")
+                output_pdf_path = st.text_input("Enter the path for the output PDF file", "output_id_cards.pdf")
 
-            if cards:
-                pdf_path = "generated_id_cards.pdf"
-                pdf_created = create_pdf(cards, pdf_path)
-                if pdf_created:
-                    display_pdf(pdf_path)
+                if st.button("Generate ID Cards"):
+                    if not template_path or not image_folder or not qr_folder or not output_pdf_path:
+                        st.error("Please provide all the required paths.")
+                    else:
+                        try:
+                            generated_images = []
+                            for _, row in df.iterrows():
+                                card = generate_card(row, template_path, image_folder, qr_folder)
+                                if card:
+                                    img_path = f"{image_folder}/{row['ID']}_generated.jpg"
+                                    card.save(img_path)
+                                    generated_images.append(img_path)
 
-    elif choice == "Generate ID Cards from CSV":
-        st.header("Generate ID Cards from CSV")
-        uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
-        if uploaded_file:
-            df = pd.read_csv(uploaded_file)
-            AgGrid(df)
-            if st.button("Generate ID Cards"):
-                cards = []
-                for idx, row in df.iterrows():
-                    data = {
-                        'ID': row.get('ID', ''),
-                        'Division/Section': row.get('Division/Section', ''),
-                        'Name': row.get('Name', ''),
-                        'University': row.get('University', ''),
-                        'Internship Start Date': row.get('Internship Start Date', ''),
-                        'Internship End Date': row.get('Internship End Date', ''),
-                        'Mobile': row.get('Mobile', '')
-                    }
-                    card = generate_card(data, template_path, image_folder, qr_folder)
-                    if card:
-                        cards.append(card)
+                            if generated_images:
+                                pdf_path = create_pdf(generated_images, output_pdf_path)
+                                if pdf_path:
+                                    st.success("ID cards generated and saved successfully!")
+                                    display_pdf(pdf_path)
+                                else:
+                                    st.error("Failed to create PDF.")
+                            else:
+                                st.error("No ID cards were generated. Please check the logs for more details.")
+                        except Exception as e:
+                            st.error(f"Error generating ID cards: {str(e)}")
+                            logging.error(f"Error generating ID cards: {str(e)}")
 
-                if cards:
-                    pdf_path = "generated_id_cards.pdf"
-                    pdf_created = create_pdf(cards, pdf_path)
-                    if pdf_created:
-                        display_pdf(pdf_path)
+            except Exception as e:
+                st.error(f"Error uploading Excel file: {str(e)}")
+                logging.error(f"Error uploading Excel file: {str(e)}")
+
+    elif choice == "View Sample Data":
+        st.subheader("Sample Data")
+        sample_data = {
+            "ID": [1, 2, 3],
+            "Name": ["John Doe", "Jane Smith", "Alice Johnson"],
+            "Division/Section": ["Advanced Information Technologies Group", "Societal Electronics Group", "Industrial Automation"],
+            "Internship Start Date": ["2024-01-01", "2024-02-01", "2024-03-01"],
+            "Internship End Date": ["2024-06-01", "2024-07-01", "2024-08-01"],
+            "Mobile": ["1234567890", "0987654321", "1122334455"],
+            "University": ["University A", "University B", "University C"]
+        }
+        df_sample = pd.DataFrame(sample_data)
+        AgGrid(df_sample)  # Display sample data using st_aggrid
 
 if __name__ == "__main__":
     main()
