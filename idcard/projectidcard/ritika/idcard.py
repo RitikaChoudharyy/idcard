@@ -15,7 +15,7 @@ import io
 
 # Authenticate and build Google Drive service
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
-SERVICE_ACCOUNT_FILE = 'ceeriintern-440751c7bf05.json'  # Update with your service account JSON file
+SERVICE_ACCOUNT_FILE = 'idcard/projectidcard/ritika/idcard/ceeriintern-440751c7bf05.json'  # Update with your service account JSON file
 creds = None
 try:
     creds = service_account.Credentials.from_service_account_file(
