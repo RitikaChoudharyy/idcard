@@ -10,11 +10,6 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
 import logging
-import gspread
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseDownload
-import io
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
@@ -139,6 +134,7 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
+
 def create_pdf(images, pdf_path):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
@@ -199,67 +195,132 @@ def display_pdf(pdf_path):
         st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
-
-
-def fetch_google_sheet_data(credentials_path, spreadsheet_id):
-    try:
-        # Load credentials from the service account JSON file
-        credentials = service_account.Credentials.from_service_account_file(credentials_path, scopes=['https://www.googleapis.com/auth/drive'])
-        gc = gspread.authorize(credentials)
         
-        # Open the Google Sheet
-        worksheet = gc.open_by_key(spreadsheet_id).sheet1  # Replace with the actual worksheet
-        
-        # Get all records from the worksheet
-        records = worksheet.get_all_records()
-        return records
-    except Exception as e:
-        logging.error(f"Error fetching data from Google Sheet: {str(e)}")
-        return None
-
-
 def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
 
     # Update these paths according to your file locations
-    template_path = "template.jpg"
-    image_folder = "images"
-    qr_folder = "qrs"
-    output_pdf_path = "generated_id_cards.pdf"
-    credentials_path = "credentials.json"
-    spreadsheet_id = "1cGp...wYjE"  # Replace with your Google Sheet ID
+    template_path = "idcard/projectidcard/ritika/ST.png"
+    image_folder = "idcard/projectidcard/ritika/downloaded_images"
+    qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
+    output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"  # Default download path
 
-    # Fetch data from Google Sheet
-    st.write("Fetching data from Google Sheet...")
-    data = fetch_google_sheet_data(credentials_path, spreadsheet_id)
+    # Sidebar for managing CSV
+    st.sidebar.header('Manage CSV')
 
-    if data:
-        st.write(f"Fetched {len(data)} records from Google Sheet.")
+    # File uploader in sidebar
+    csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
 
-        # Generate ID cards
-        st.write("Generating ID cards...")
-        generated_images = []
-        for record in data:
-            image = generate_card(record, template_path, image_folder, qr_folder)
-            if image:
-                generated_images.append(image)
+    if csv_file is not None:
+        try:
+            csv_data = pd.read_csv(csv_file)
+            st.sidebar.success('CSV file successfully uploaded/updated.')
 
-        st.write(f"Generated {len(generated_images)} ID cards.")
+            # Checkbox for modifying CSV in sidebar
+            modified_csv = st.sidebar.checkbox('Modify CSV')
+            if modified_csv:
+                st.subheader('Edit CSV')
+                # Display editable DataFrame below the checkbox
+                with st.expander("View/Modify CSV"):
+                    grid_response = AgGrid(
+                        csv_data,
+                        editable=True,
+                        height=400,
+                        fit_columns_on_grid_load=True,
+                    )
+                    df_edited = grid_response['data']
 
-        # Create PDF from generated images
-        st.write("Creating PDF...")
-        pdf_path = create_pdf(generated_images, output_pdf_path)
+                    # Automatically save changes to CSV when data is edited
+                    if st.session_state.get('csv_data_updated', False):
+                        df_edited.to_csv(csv_file.name, index=False)
+                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
+                        st.session_state['csv_data_updated'] = False  # Reset the flag
 
-        if pdf_path:
-            st.success("PDF created successfully!")
-            display_pdf(pdf_path)
-        else:
-            st.error("Failed to create PDF.")
+                    # Store initial state of csv_data in session state
+                    if 'csv_data' not in st.session_state:
+                        st.session_state['csv_data'] = csv_data
 
-    else:
-        st.error("Failed to fetch data from Google Sheet. Check logs for details.")
+                    # Check for changes in data and update session state if needed
+                    if not df_edited.equals(st.session_state['csv_data']):
+                        st.session_state['csv_data_updated'] = True
+                        st.session_state['csv_data'] = df_edited.copy()
 
+                    # Button to manually save changes
+                    if st.button('Save Changes'):
+                        df_edited.to_csv(csv_file.name, index=False)
+                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
 
-if __name__ == "__main__":
+        except Exception as e:
+            st.error(f"Error reading CSV file: {str(e)}")
+
+    # Section to generate ID cards
+    st.subheader('Generate ID Cards')
+    generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
+
+    if generate_mode == 'Individual ID':
+        id_input = st.text_input('Enter the ID:')
+        if st.button('Generate ID Card'):
+            if not id_input.isdigit():
+                st.warning('Invalid input. Please enter a valid numeric ID.')
+            else:
+                selected_data = csv_data[csv_data['ID'] == int(id_input)].iloc[0]
+                generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
+                if generated_card:
+                    st.image(generated_card, caption=f"Generated ID Card for ID: {id_input}")
+
+    elif generate_mode == 'Comma-separated IDs':
+        ids_input = st.text_input('Enter comma-separated IDs:')
+        if st.button('Generate ID Cards'):
+            id_list = [int(id.strip()) for id in ids_input.split(',') if id.strip().isdigit()]
+            generated_cards = []
+
+            for id_input in id_list:
+                selected_data = csv_data[csv_data['ID'] == id_input].iloc[0]
+                generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
+                if generated_card:
+                    generated_cards.append(generated_card)
+
+            if generated_cards:
+                st.success(f"Generated {len(generated_cards)} ID cards.")
+                for i, card in enumerate(generated_cards):
+                    st.image(card, caption=f"Generated ID Card for ID: {id_list[i]}")
+
+                # Create PDF of generated ID cards
+                pdf_path = create_pdf(generated_cards, output_pdf_path_default)
+                if pdf_path:
+                    st.success(f"PDF created successfully.")
+                    # Display download button for the PDF
+                    st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
+                else:
+                    st.error("Failed to create PDF.")
+
+    elif generate_mode == 'All Students':
+        st.info("Generating ID cards for all students...")
+        generated_cards = []
+
+        for index, data in csv_data.iterrows():
+            generated_card = generate_card(data, template_path, image_folder, qr_folder)
+            if generated_card:
+                generated_cards.append(generated_card)
+
+        if generated_cards:
+            st.success(f"Generated {len(generated_cards)} ID cards.")
+
+            # Create PDF of generated ID cards
+            pdf_path = create_pdf(generated_cards, output_pdf_path_default)
+            if pdf_path:
+                st.success(f"PDF created successfully.")
+                # Display download button for the PDF
+                st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
+            else:
+                st.error("Failed to create PDF.")
+
+def get_binary_file_downloader_html(bin_file, file_label='File'):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    bin_str = base64.b64encode(data).decode()
+    return f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'
+
+if _name_ == "_main_":
     main()
