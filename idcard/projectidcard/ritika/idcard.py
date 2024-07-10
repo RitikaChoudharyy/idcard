@@ -10,8 +10,20 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
 import logging
+import gspread
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseDownload
+import io
 
-logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
+# Load credentials from the service account JSON file
+credentials = service_account.Credentials.from_service_account_file('ceeriintern-440751c7bf05.json', scopes=['https://www.googleapis.com/auth/drive'])
+gc = gspread.authorize(credentials)
+drive_service = build('drive', 'v3', credentials=credentials)
+
+# Open the Google Sheet
+spreadsheet_id = '1oJ40rKq4jDSMsvmtCvlja2FnXRCV8aAfAXWsyWhM_Ds'
+worksheet = gc.open_by_key(spreadsheet_id).sheet1
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
@@ -134,7 +146,6 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
-
 def create_pdf(images, pdf_path):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
@@ -184,7 +195,6 @@ def create_pdf(images, pdf_path):
         logging.error(f"Error creating PDF: {str(e)}")
         return None
 
-
 def display_pdf(pdf_path):
     try:
         with open(pdf_path, "rb") as f:
@@ -195,7 +205,6 @@ def display_pdf(pdf_path):
         st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
-        
 def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
@@ -307,20 +316,14 @@ def main():
         if generated_cards:
             st.success(f"Generated {len(generated_cards)} ID cards.")
 
-            # Create PDF of generated ID cards
+            # Create PDF of generated IDcards
             pdf_path = create_pdf(generated_cards, output_pdf_path_default)
             if pdf_path:
                 st.success(f"PDF created successfully.")
                 # Display download button for the PDF
-                st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
+                display_pdf(pdf_path)
             else:
                 st.error("Failed to create PDF.")
 
-def get_binary_file_downloader_html(bin_file, file_label='File'):
-    with open(bin_file, 'rb') as f:
-        data = f.read()
-    bin_str = base64.b64encode(data).decode()
-    return f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'
-
-if _name_ == "_main_":
+if __name__ == "__main__":
     main()
