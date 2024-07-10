@@ -2,7 +2,7 @@ dlib-bin
 opencv-python-headless
 onnxruntime 
 logging
-opencv-python-headless
+opencv_contrib_python
 onnxruntime-gpu
 altair
 attrs
