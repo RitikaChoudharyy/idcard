@@ -15,6 +15,10 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
 import io
+if os.path.exists('ceeriintern-440751c7bf05.json'):
+    credentials = service_account.Credentials.from_service_account_file('ceeriintern-440751c7bf05.json', scopes=['https://www.googleapis.com/auth/drive'])
+else:
+    print("File not found!")
 
 # Load credentials from the service account JSON file
 credentials = service_account.Credentials.from_service_account_file('ceeriintern-440751c7bf05.json', scopes=['https://www.googleapis.com/auth/drive'])
@@ -23,7 +27,7 @@ drive_service = build('drive', 'v3', credentials=credentials)
 
 # Open the Google Sheet
 spreadsheet_id = '1oJ40rKq4jDSMsvmtCvlja2FnXRCV8aAfAXWsyWhM_Ds'
-worksheet = gc.open_by_key(spreadsheet_id).sheet1
+worksheet = gc.open_by_key(spreadsheet_id).sheet
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
