@@ -1,40 +1,3 @@
-
-To resolve the error Errno 2: No such file or directory: 'your_service_account_credentials.json', which occurs when trying to authenticate with the Google Drive API using a service account file that isn't found, you need to ensure the following steps are correctly implemented:
-
-1. Service Account Credentials File
-Ensure that you have correctly set the SERVICE_ACCOUNT_FILE variable to point to your service account JSON file (ceeriintern-440751c7bf05.json in your case). This file should exist in the specified path relative to your project or provide the absolute path correctly.
-
-python
-Copy code
-SERVICE_ACCOUNT_FILE = 'idcard/projectidcard/ritika/idcard/ceeriintern-440751c7bf05.json'
-2. File Path Verification
-Double-check the file path specified in SERVICE_ACCOUNT_FILE:
-
-Ensure that the file ceeriintern-440751c7bf05.json exists in the exact location specified.
-Verify the path is correct relative to where your Python script (idcard.py) is located.
-3. Access and Permissions
-Make sure the service account file has the correct permissions:
-
-Ensure the service account JSON file has the necessary permissions to access the Google Drive API (https://www.googleapis.com/auth/drive.readonly in your SCOPES).
-4. Deployment Considerations (if applicable)
-If you are deploying this Streamlit app in a cloud environment (e.g., Streamlit Cloud):
-
-Ensure the service account file is uploaded and accessible in the deployed environment.
-Adjust the SERVICE_ACCOUNT_FILE path accordingly if the file structure differs in the deployment environment.
-5. Error Handling
-Improve error handling to provide clearer messages in case of issues:
-
-python
-Copy code
-except Exception as e:
-    st.error(f"Error authenticating Google Drive API: {str(e)}")
-This will help you debug and identify specific issues when running the Streamlit app.
-
-Example Adjustments
-Here’s a revised snippet with some improvements and error handling:
-
-python
-Copy code
 import streamlit as st
 import pandas as pd
 import os
@@ -54,13 +17,14 @@ import io
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 SERVICE_ACCOUNT_FILE = 'idcard/projectidcard/ritika/idcard/ceeriintern-440751c7bf05.json'  # Update with your service account JSON file
 creds = None
+drive_service = None
+
 try:
     creds = service_account.Credentials.from_service_account_file(
         SERVICE_ACCOUNT_FILE, scopes=SCOPES)
     drive_service = build('drive', 'v3', credentials=creds)
 except Exception as e:
     st.error(f"Error authenticating Google Drive API: {str(e)}")
-
 
 # Function to download image from Google Drive
 def download_image_from_drive(file_id, image_path):
