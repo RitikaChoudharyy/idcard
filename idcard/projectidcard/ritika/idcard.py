@@ -12,7 +12,7 @@ from reportlab.lib.units import inch, mm
 from google.cloud import storage
 from google.oauth2 import service_account
 
-# Initialize Google Cloud Storage client
+# Function to initialize Google Cloud Storage client
 def initialize_storage_client(credentials_path):
     try:
         credentials = service_account.Credentials.from_service_account_file(credentials_path)
@@ -31,7 +31,7 @@ def preprocess_image(image_path):
     except Exception as e:
         st.error(f"Error opening image at image_path: {str(e)}")
         return None
-
+        
 def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
@@ -217,15 +217,12 @@ def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
 
-    # Load Google Cloud credentials
-    try:
-        credentials = impersonated_credentials.Credentials.from_service_account_info(
-            st.secrets["google_cloud"]["credentials"],
-            target_principal=st.secrets["google_cloud"]["target_principal"],
-            target_scopes=["https://www.googleapis.com/auth/cloud-platform"],
-        )
-    except Exception as e:
-        st.error(f"Error loading Google Cloud credentials: {str(e)}")
+
+    # Load Google Cloud credentials from a file
+    credentials_path = st.secrets["google_cloud"]["credentials"]  # Update with your secret name
+    storage_client = initialize_storage_client(credentials_path)
+    if not storage_client:
+        st.error("Failed to initialize Google Cloud Storage client.")
         return
 
     # Initialize Google Cloud Storage client
