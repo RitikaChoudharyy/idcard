@@ -1,3 +1,13 @@
+import streamlit as st
+import os
+from PIL import Image, ImageDraw, ImageFont
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+import logging
+import base64
+import textwrap
+import mysql.connector
+import pandas as pd
 
 # MySQL connection details
 mysql_config = {
@@ -146,7 +156,6 @@ def get_head_by_division(division_name):
 
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
-
 
 def create_pdf(images, pdf_path):
     try:
