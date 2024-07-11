@@ -19,7 +19,7 @@ logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s
 def create_connection():
     try:
         connection = mysql.connector.connect(host='localhost',
-                                             database='internship_details',
+                                             database='id_card_db',
                                              user='root',
                                              password='Ritika@123')
         if connection.is_connected():
