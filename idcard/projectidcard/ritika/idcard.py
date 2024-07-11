@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import os
@@ -209,9 +210,6 @@ def main():
     # Sidebar for managing CSV
     st.sidebar.header('Manage CSV')
 
-if st.sidebar.button("Execute Query"):
-    if query:
-        execute_query(query)
     # File uploader in sidebar
     csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
 
