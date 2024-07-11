@@ -18,10 +18,12 @@ logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s
 # Function to create MySQL connection
 def create_connection():
     try:
-        connection = mysql.connector.connect(host='localhost',
-                                             database='id_card_db',
-                                             user='root',
-                                             password='Ritika@123')
+        connection = mysql.connector.connect(
+            host='localhost',
+            database='id_card_db',
+            user='root',
+            password='Ritika@123'
+        )
         if connection.is_connected():
             db_info = connection.get_server_info()
             print(f"Connected to MySQL Server version {db_info}")
@@ -66,6 +68,7 @@ def check_generated_card(id):
             cursor.close()
             connection.close()
 
+
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
     try:
@@ -75,6 +78,12 @@ def preprocess_image(image_path):
     except Exception as e:
         st.error(f"Error opening image at image_path: {str(e)}")
         return None
+table_name = generated_cards;    
+# Function to retrieve and display all data from a SQL table
+def display_all_data(table_name):
+    query = f"SELECT * FROM {table_name}"
+    execute_query(query)
+
 
 # Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
