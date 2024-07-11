@@ -9,18 +9,9 @@ from st_aggrid import AgGrid
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
-from google.cloud import storage
-from google.oauth2 import service_account
+import logging
 
-# Function to initialize Google Cloud Storage client
-def initialize_storage_client(credentials_path):
-    try:
-        credentials = service_account.Credentials.from_service_account_file(credentials_path)
-        storage_client = storage.Client(credentials=credentials)
-        return storage_client
-    except Exception as e:
-        st.error(f"Error initializing Google Cloud Storage client: {str(e)}")
-        return None
+logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
@@ -31,7 +22,7 @@ def preprocess_image(image_path):
     except Exception as e:
         st.error(f"Error opening image at image_path: {str(e)}")
         return None
-        
+
 def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
@@ -204,32 +195,10 @@ def display_pdf(pdf_path):
         st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
-
-
-def get_binary_file_downloader_html(bin_file, file_label='File'):
-    with open(bin_file, 'rb') as f:
-        data = f.read()
-    bin_str = base64.b64encode(data).decode()
-    return f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'  
-
-
+        
 def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
-
-
-    # Load Google Cloud credentials from a file
-    credentials_path = st.secrets["google_cloud"]["credentials"]  # Update with your secret name
-    storage_client = initialize_storage_client(credentials_path)
-    if not storage_client:
-        st.error("Failed to initialize Google Cloud Storage client.")
-        return
-
-    # Initialize Google Cloud Storage client
-    storage_client = initialize_storage_client(credentials)
-    if not storage_client:
-        st.error("Failed to initialize Google Cloud Storage client.")
-        return
 
     # Update these paths according to your file locations
     template_path = "idcard/projectidcard/ritika/ST.png"
@@ -346,6 +315,12 @@ def main():
                 st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
             else:
                 st.error("Failed to create PDF.")
+
+def get_binary_file_downloader_html(bin_file, file_label='File'):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    bin_str = base64.b64encode(data).decode()
+    return f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'
 
 if __name__ == "__main__":
     main()
