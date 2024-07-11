@@ -12,6 +12,9 @@ from reportlab.lib.units import inch, mm
 from google.auth import compute_engine, impersonated_credentials
 from google.cloud import storage
 
+credentials = "C:/Users/Shree/Desktop/idcard/projectidcard/ritika/credentials.json"
+target_principal = "ceeriintern@ceeriintern.iam.gserviceaccount.com"
+
 # Initialize Google Cloud Storage client
 def initialize_storage_client(credentials):
     try:
