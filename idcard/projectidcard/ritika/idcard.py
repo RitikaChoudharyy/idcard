@@ -9,9 +9,17 @@ from st_aggrid import AgGrid
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
-import logging
+from google.auth import compute_engine, impersonated_credentials
+from google.cloud import storage
 
-logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
+# Initialize Google Cloud Storage client
+def initialize_storage_client(credentials):
+    try:
+        storage_client = storage.Client(credentials=credentials)
+        return storage_client
+    except Exception as e:
+        st.error(f"Error initializing Google Cloud Storage client: {str(e)}")
+        return None
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
@@ -195,10 +203,35 @@ def display_pdf(pdf_path):
         st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
-        
+
+
+def get_binary_file_downloader_html(bin_file, file_label='File'):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    bin_str = base64.b64encode(data).decode()
+    return f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'  
+
+
 def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
+
+    # Load Google Cloud credentials
+    try:
+        credentials = impersonated_credentials.Credentials.from_service_account_info(
+            st.secrets["google_cloud"]["credentials"],
+            target_principal=st.secrets["google_cloud"]["target_principal"],
+            target_scopes=["https://www.googleapis.com/auth/cloud-platform"],
+        )
+    except Exception as e:
+        st.error(f"Error loading Google Cloud credentials: {str(e)}")
+        return
+
+    # Initialize Google Cloud Storage client
+    storage_client = initialize_storage_client(credentials)
+    if not storage_client:
+        st.error("Failed to initialize Google Cloud Storage client.")
+        return
 
     # Update these paths according to your file locations
     template_path = "idcard/projectidcard/ritika/ST.png"
@@ -315,12 +348,6 @@ def main():
                 st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
             else:
                 st.error("Failed to create PDF.")
-
-def get_binary_file_downloader_html(bin_file, file_label='File'):
-    with open(bin_file, 'rb') as f:
-        data = f.read()
-    bin_str = base64.b64encode(data).decode()
-    return f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'
 
 if __name__ == "__main__":
     main()
