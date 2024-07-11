@@ -9,15 +9,13 @@ from st_aggrid import AgGrid
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
-from google.auth import compute_engine, impersonated_credentials
 from google.cloud import storage
-
-credentials = "C:/Users/Shree/Desktop/idcard/projectidcard/ritika/credentials.json"
-target_principal = "ceeriintern@ceeriintern.iam.gserviceaccount.com"
+from google.oauth2 import service_account
 
 # Initialize Google Cloud Storage client
-def initialize_storage_client(credentials):
+def initialize_storage_client(credentials_path):
     try:
+        credentials = service_account.Credentials.from_service_account_file(credentials_path)
         storage_client = storage.Client(credentials=credentials)
         return storage_client
     except Exception as e:
@@ -33,7 +31,6 @@ def preprocess_image(image_path):
     except Exception as e:
         st.error(f"Error opening image at image_path: {str(e)}")
         return None
-
 def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
