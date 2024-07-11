@@ -10,64 +10,8 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
 import logging
-import mysql.connector
-from mysql.connector import Error
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
-
-# Function to create MySQL connection
-def create_connection():
-    try:
-        connection = mysql.connector.connect(
-            host='localhost',
-            database='id_card_db',
-            user='root',
-            password='Ritika@123'
-        )
-        if connection.is_connected():
-            db_info = connection.get_server_info()
-            print(f"Connected to MySQL Server version {db_info}")
-            cursor = connection.cursor()
-            cursor.execute("select database();")
-            record = cursor.fetchone()
-            print(f"You're connected to database: {record}")
-        return connection
-    except Error as e:
-        st.error(f"Error connecting to MySQL: {str(e)}")
-        logging.error(f"Error connecting to MySQL: {str(e)}")
-        return None
-
-# Function to insert generated ID card information into the database
-def insert_generated_card(id, name):
-    connection = create_connection()
-    if connection:
-        try:
-            cursor = connection.cursor()
-            cursor.execute("INSERT INTO generated_cards (id, name) VALUES (%s, %s)", (id, name))
-            connection.commit()
-            st.success(f"Inserted ID: {id}, Name: {name} into database.")
-        except Error as e:
-            st.error(f"Error inserting into MySQL: {str(e)}")
-        finally:
-            cursor.close()
-            connection.close()
-
-# Function to check if an ID card has already been generated
-def check_generated_card(id):
-    connection = create_connection()
-    if connection:
-        try:
-            cursor = connection.cursor()
-            cursor.execute("SELECT * FROM generated_cards WHERE id = %s", (id,))
-            record = cursor.fetchone()
-            return record is not None
-        except Error as e:
-            st.error(f"Error querying MySQL: {str(e)}")
-            return False
-        finally:
-            cursor.close()
-            connection.close()
-
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
@@ -78,18 +22,7 @@ def preprocess_image(image_path):
     except Exception as e:
         st.error(f"Error opening image at image_path: {str(e)}")
         return None
-        
-# Define the table name as a string
-generated_cards = 'generated_cards'
 
-# Function to retrieve and display all data from a SQL table
-def display_all_data(table_name):
-    query = f"SELECT * FROM {table_name}"
-    execute_query(query)
-
-
-
-# Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
@@ -201,7 +134,7 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
-# Function to create PDF of generated ID cards
+
 def create_pdf(images, pdf_path):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
@@ -242,22 +175,29 @@ def create_pdf(images, pdf_path):
             # Draw the image on the canvas
             c.drawInlineImage(image, x, y, width=image_width, height=image_height)
 
-        # Save the PDF file
+        # Save the PDF to the specified path
         c.save()
-        return pdf_path
+
+        return pdf_path  # Return the path where the PDF is saved
+
     except Exception as e:
-        st.error(f"Error creating PDF: {str(e)}")
+        logging.error(f"Error creating PDF: {str(e)}")
         return None
 
-# Function to download PDF
-def get_binary_file_downloader_html(bin_file, file_label='File'):
-    with open(bin_file, 'rb') as f:
-        data = f.read()
-    bin_str = base64.b64encode(data).decode()
-    return f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'
 
-# Main function to run the Streamlit app
+def display_pdf(pdf_path):
+    try:
+        with open(pdf_path, "rb") as f:
+            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+            pdf_display = f'<a href="data:application/pdf;base64,{base64_pdf}" download="generated_id_cards.pdf">Download PDF</a>'
+            st.markdown(pdf_display, unsafe_allow_html=True)
+    except FileNotFoundError:
+        st.error(f"PDF file '{pdf_path}' not found.")
+    except Exception as e:
+        st.error(f"Error displaying PDF: {str(e)}")
+        
 def main():
+    # Streamlit setup
     st.title("Automatic ID Card Generation")
 
     # Update these paths according to your file locations
@@ -325,13 +265,9 @@ def main():
                 st.warning('Invalid input. Please enter a valid numeric ID.')
             else:
                 selected_data = csv_data[csv_data['ID'] == int(id_input)].iloc[0]
-                if check_generated_card(int(id_input)):
-                    st.warning(f"ID Card for ID {id_input} has already been generated.")
-                else:
-                    generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
-                    if generated_card:
-                        st.image(generated_card, caption=f"Generated ID Card for ID: {id_input}")
-                        insert_generated_card(int(id_input), selected_data['Name'])
+                generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
+                if generated_card:
+                    st.image(generated_card, caption=f"Generated ID Card for ID: {id_input}")
 
     elif generate_mode == 'Comma-separated IDs':
         ids_input = st.text_input('Enter comma-separated IDs:')
@@ -340,15 +276,10 @@ def main():
             generated_cards = []
 
             for id_input in id_list:
-                if check_generated_card(id_input):
-                    st.warning(f"ID Card for ID {id_input} has already been generated.")
-                    continue
-
                 selected_data = csv_data[csv_data['ID'] == id_input].iloc[0]
                 generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
                 if generated_card:
                     generated_cards.append(generated_card)
-                    insert_generated_card(id_input, selected_data['Name'])
 
             if generated_cards:
                 st.success(f"Generated {len(generated_cards)} ID cards.")
@@ -369,14 +300,9 @@ def main():
         generated_cards = []
 
         for index, data in csv_data.iterrows():
-            if check_generated_card(data['ID']):
-                st.warning(f"ID Card for ID {data['ID']} has already been generated.")
-                continue
-
             generated_card = generate_card(data, template_path, image_folder, qr_folder)
             if generated_card:
                 generated_cards.append(generated_card)
-                insert_generated_card(data['ID'], data['Name'])
 
         if generated_cards:
             st.success(f"Generated {len(generated_cards)} ID cards.")
@@ -390,28 +316,11 @@ def main():
             else:
                 st.error("Failed to create PDF.")
 
-    # Section to display stored ID card details from MySQL
-    st.subheader('Stored ID Cards')
+def get_binary_file_downloader_html(bin_file, file_label='File'):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    bin_str = base64.b64encode(data).decode()
+    return f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'
 
-    try:
-        connection = create_connection()
-        if connection:
-            cursor = connection.cursor()
-            cursor.execute("SELECT * FROM generated_cards")
-            records = cursor.fetchall()
-
-            if records:
-                st.write("Stored ID Card Details:")
-                for record in records:
-                    st.write(f"ID: {record[0]}, Name: {record[1]}")
-            else:
-                st.info("No stored ID card details found.")
-    except Error as e:
-        st.error(f"Error querying MySQL: {str(e)}")
-    finally:
-        if connection:
-            cursor.close()
-            connection.close()
-
-if __name__ == "__main__":
+if _name_ == "_main_":
     main()
