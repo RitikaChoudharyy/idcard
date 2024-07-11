@@ -78,11 +78,15 @@ def preprocess_image(image_path):
     except Exception as e:
         st.error(f"Error opening image at image_path: {str(e)}")
         return None
-table_name = generated_cards;    
+        
+# Define the table name as a string
+generated_cards = 'generated_cards'
+
 # Function to retrieve and display all data from a SQL table
 def display_all_data(table_name):
     query = f"SELECT * FROM {table_name}"
     execute_query(query)
+
 
 
 # Function to generate ID card
