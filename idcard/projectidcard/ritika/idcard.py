@@ -208,7 +208,13 @@ def main():
 
     # Sidebar for managing CSV
     st.sidebar.header('Manage CSV')
+    # MySQL Query Section
+st.sidebar.header("MySQL Query")
+query = st.sidebar.text_area("Enter your SQL query here")
 
+if st.sidebar.button("Execute Query"):
+    if query:
+        execute_query(query)
     # File uploader in sidebar
     csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
 
