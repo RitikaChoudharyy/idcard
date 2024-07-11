@@ -1,4 +1,4 @@
-mysql connector
+mysql.connector
 gspread
 google-api-python-client
 google-auth-httplib2
