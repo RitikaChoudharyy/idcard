@@ -318,9 +318,6 @@ if st.sidebar.button("Execute Query"):
                 st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
             else:
                 st.error("Failed to create PDF.")
-    # MySQL Query Section
-st.sidebar.header("MySQL Query")
-query = st.sidebar.text_area("Enter your SQL query here")
 
 def get_binary_file_downloader_html(bin_file, file_label='File'):
     with open(bin_file, 'rb') as f:
