@@ -19,7 +19,7 @@ def execute_mysql_query(query):
         # Replace with your MySQL connection details
         connection = mysql.connector.connect(
             host='localhost',
-            user=root',
+            user=root,
             password='Ritika@123',
             database='id_card_db'
         )
@@ -232,7 +232,15 @@ def main():
     image_folder = "idcard/projectidcard/ritika/downloaded_images"
     qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
     output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"  # Default download path
-
+    
+    # MySQL query input
+    query = st.sidebar.text_area("Enter MySQL Query", "")
+    
+    if st.sidebar.button("Execute Query"):
+        if query:
+            execute_mysql_query(query)
+        else:
+            st.sidebar.error("Please enter a valid MySQL query.")
     # Sidebar for managing CSV
     st.sidebar.header('Manage CSV')
 
