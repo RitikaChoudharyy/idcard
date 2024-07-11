@@ -10,66 +10,18 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
 import logging
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseDownload
-import io
-import gspread
-import json
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
-# Function to get credentials
-def get_credentials():
-    creds_dict = {
-      "type": "service_account",
-      "project_id": "ceeriintern",
-      "private_key_id": "440751c7bf053828b027d497e5aa1c31bb4e9157",
-      "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDm2sEUiWcwqJWj\nVkXbspBHha2M+s/RXDMUu0IM/ryivmzoDJFh3DhsWLfNZsi3YgYz5cGp1SZJsjYd\nZklRDLIl5n9dHTmzWkb6ZWQ4RsKzvLzC8RoBz7ZbLumMTBJ4zE5+ynYnaFh5cDAW\n2FzL/+XA/8m8rZA4agSM46wtjavAg4wiWhX5XASMYjlURHSdufCEAkqgIuUwA9NW\nJUOSU2+8T3y+iadJkbugxCQmGzAFTpCIfX9VIsLUMfNDWsZccAK8HTlSWNZ8sfNC\nd3RByowAX7WqUrIM3EEIV7fYz5jqgqFBd95phXtPpmX+7QBc7ynyyTaXfBhoiDF7\nOXf1dNmZAgMBAAECggEADNEPUCsSug5aBG/5P+nJfdcLnByephJ22YtN7vfDlEt7\nM2TjO2olDcrdJX+z3A6Kpp32Yw3s6sGEpJw1rNTGHTmPT6WcOvtjnmo7pq4zCBSN\n7ErDdV9JUgWoPLxKeD9rijmGVsjBxLg4S0Rm3oKOCGmLEzkVnTQxnXrUZ9EKPI1W\nGKxgchMgW7evyaK8bvRezyz76DyqkEuHJl6zI38Vh5VIqguRaD7J7ybSDHWTX+HS\n5+49NgoTMoaxq4nOtUcSUXxKpYDDnmVuY72Q9Q3RRlV39WaVIcg39R9Mcbk232zj\nXS5yhlhmfl044KXLcWqQQQzh74TJ5gEoSQBq2DYQKwKBgQD+Jup3KmXFCSeD+h51\n1cVKGLhepxAuZEn7gDUx2336ET2RbFoUQ1hgtUjaNpKi+W4xoUUu1tQm6ChQKdYT\nKG7SA8kHqV546Wyxd0k3n0pj/LNBVr33wa6flgPbnZoKyZAB6TIrKWg5HL2jkZm+\nsXcVMkoAs1OI3VMoFFZYTVQCewKBgQDoiHjLNUsj+mnrMGON4I9Qpg2DVYTrkUlg\n784e24KcSIu6VAi0Wi7t8D+BSct5R1DImWShYuHaZLXcfvolfquyoh98bjwbbUX5\nxP39+M+1dbU6iTn/dzu4gBCOusshhTDDkxr6XMpsLzNAltwiB1tl3hK368bNnVsU\nk+cKFTDR+wKBgQDUpFjOJXIKvlMKkE3GB3rPOQmhYCQgvJZN0AIx2dR4Us5xivd/\nNq2OFH+E294qb4lsCuOogeP1PY7lK2vKkazPGI2tVF8PyTXA8e4XlLYYHEkapOnC\njpF9QnWt3RoSZnyPrL3l8PobttlQLrU1IKRi3rWeCmwc+hjmUsW/kct1WwKBgQDa\n1ly/+VbO9EMsSOzYQAcAQlYjTJ98Rs4FAYo9Nh50UD3XzHAos1rJKLnLRhTM/VXE\ng7/VtkaRjwgsDAAEu3KA+dyh8Oh2c19QkZjrpHZt8unsveqsRp0YpMVwXdD/qeZb\nmJziE+OY7s7QMWnYSI42j0mUd7swFK/77LmZnpnEcwKBgQDAly4Egg+ylOVvcHxC\nM90Wn8LseSNkFrKv9KLURJWaqkJG0vB7NFB8j4l9/wO7dAQsAoQzmmIpHVujx0O+\nMtudU8Y2+FNgVHRtg2XK+7cq53VTDjMykWzm2PmPJDHGW2NBUMF4Z0ntMfjH58iG\nUqcjAQSQ68IxAWn4ptc4QdInHg==\n-----END PRIVATE KEY-----\n",
-      "client_email": "ceeriintern@ceeriintern.iam.gserviceaccount.com",
-      "client_id": "109310078454904722620",
-      "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-      "token_uri": "https://oauth2.googleapis.com/token",
-      "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-      "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/ceeriintern%40ceeriintern.iam.gserviceaccount.com"
-    }
-
-    creds = service_account.Credentials.from_service_account_info(
-        creds_dict,
-        scopes=['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets.readonly']
-    )
-    return creds
-
-
-def download_images_from_drive(spreadsheet_id, image_folder):
-    credentials = get_credentials()
-    gc = gspread.authorize(credentials)
-    drive_service = build('drive', 'v3', credentials=credentials)
-
-    worksheet = gc.open_by_key(spreadsheet_id).sheet1
-    image_urls = worksheet.col_values(2)[1:]  # Assuming image URLs are in column 2, starting from row 2
-
-    if not os.path.exists(image_folder):
-        os.makedirs(image_folder)
-
-    for i, image_url in enumerate(image_urls, start=2):
-        try:
-            file_id = image_url.split('id=')[1]
-            request = drive_service.files().get_media(fileId=file_id)
-            fh = io.BytesIO()
-            downloader = MediaIoBaseDownload(fh, request)
-            done = False
-            while not done:
-                status, done = downloader.next_chunk()
-
-            save_as_filename = os.path.join(image_folder, f'{worksheet.cell(i, 1).value}.jpg')
-            with open(save_as_filename, 'wb') as f:
-                fh.seek(0)
-                f.write(fh.read())
-
-            st.write(f'Downloaded: {save_as_filename}')
-        except Exception as e:
-            st.error(f'Error downloading image from {image_url}: {e}')
+# Function to preprocess image (convert to RGB)
+def preprocess_image(image_path):
+    try:
+        input_image = Image.open(image_path)
+        final_image = input_image.convert("RGB")
+        return final_image
+    except Exception as e:
+        st.error(f"Error opening image at image_path: {str(e)}")
+        return None
 
 def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
@@ -182,6 +134,7 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
+
 def create_pdf(images, pdf_path):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
@@ -229,8 +182,8 @@ def create_pdf(images, pdf_path):
 
     except Exception as e:
         logging.error(f"Error creating PDF: {str(e)}")
-        st.error(f"Error creating PDF: {str(e)}")
         return None
+
 
 def display_pdf(pdf_path):
     try:
@@ -242,32 +195,36 @@ def display_pdf(pdf_path):
         st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
-
+        
 def main():
+    # Streamlit setup
     st.title("Automatic ID Card Generation")
 
-    # Section to upload CSV file in column 1
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        st.sidebar.subheader('Upload CSV File')
-        csv_file = st.sidebar.file_uploader("Choose a CSV file", type="csv")
-        if csv_file is not None:
-            try:
-                csv_data = pd.read_csv(csv_file)
-                st.sidebar.success('CSV file successfully uploaded/updated.')
-            except Exception as e:
-                st.sidebar.error(f"Error reading CSV file: {str(e)}")
+    # Update these paths according to your file locations
+    template_path = "idcard/projectidcard/ritika/ST.png"
+    image_folder = "idcard/projectidcard/ritika/downloaded_images"
+    qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
+    output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"  # Default download path
 
-    with col2:
-        # Section to modify CSV and display editable grid in column 2
-        if 'csv_data' in locals():
-            st.sidebar.subheader('Modify CSV')
+    # Sidebar for managing CSV
+    st.sidebar.header('Manage CSV')
+
+    # File uploader in sidebar
+    csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
+
+    if csv_file is not None:
+        try:
+            csv_data = pd.read_csv(csv_file)
+            st.sidebar.success('CSV file successfully uploaded/updated.')
+
+            # Checkbox for modifying CSV in sidebar
             modified_csv = st.sidebar.checkbox('Modify CSV')
             if modified_csv:
-                st.sidebar.subheader('Edit CSV')
-                with st.sidebar.expander("View/Modify CSV"):
+                st.subheader('Edit CSV')
+                # Display editable DataFrame below the checkbox
+                with st.expander("View/Modify CSV"):
                     grid_response = AgGrid(
-                        csv_data.iloc[:, 1:],  # Display data from column 2 onwards
+                        csv_data,
                         editable=True,
                         height=400,
                         fit_columns_on_grid_load=True,
@@ -277,7 +234,7 @@ def main():
                     # Automatically save changes to CSV when data is edited
                     if st.session_state.get('csv_data_updated', False):
                         df_edited.to_csv(csv_file.name, index=False)
-                        st.sidebar.success(f'CSV file "{csv_file.name}" updated successfully.')
+                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
                         st.session_state['csv_data_updated'] = False  # Reset the flag
 
                     # Store initial state of csv_data in session state
@@ -290,9 +247,12 @@ def main():
                         st.session_state['csv_data'] = df_edited.copy()
 
                     # Button to manually save changes
-                    if st.sidebar.button('Save Changes'):
+                    if st.button('Save Changes'):
                         df_edited.to_csv(csv_file.name, index=False)
-                        st.sidebar.success(f'CSV file "{csv_file.name}" updated successfully.')
+                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
+
+        except Exception as e:
+            st.error(f"Error reading CSV file: {str(e)}")
 
     # Section to generate ID cards
     st.subheader('Generate ID Cards')
@@ -331,7 +291,7 @@ def main():
                 if pdf_path:
                     st.success(f"PDF created successfully.")
                     # Display download button for the PDF
-                    display_pdf(pdf_path)
+                    st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
                 else:
                     st.error("Failed to create PDF.")
 
@@ -352,31 +312,15 @@ def main():
             if pdf_path:
                 st.success(f"PDF created successfully.")
                 # Display download button for the PDF
-                display_pdf(pdf_path)
+                st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
             else:
                 st.error("Failed to create PDF.")
 
+def get_binary_file_downloader_html(bin_file, file_label='File'):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    bin_str = base64.b64encode(data).decode()
+    return f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'
 
-    elif generate_mode == 'All Students':
-        st.info("Generating ID cards for all students...")
-        generated_cards = []
-
-        for index, data in csv_data.iterrows():
-            generated_card = generate_card(data, template_path, image_folder, qr_folder)
-            if generated_card:
-                generated_cards.append(generated_card)
-
-        if generated_cards:
-            st.success(f"Generated {len(generated_cards)} ID cards.")
-
-            # Create PDF of generated ID cards
-            pdf_path = create_pdf(generated_cards, output_pdf_path_default)
-            if pdf_path:
-                st.success(f"PDF created successfully.")
-                # Display download button for the PDF
-                display_pdf(pdf_path)
-            else:
-                st.error("Failed to create PDF.")
-
-if __name__ == "__main__":
+if _name_ == "_main_":
     main()
