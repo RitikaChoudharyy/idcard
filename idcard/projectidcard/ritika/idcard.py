@@ -15,7 +15,6 @@ from mysql.connector import Error
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
-# Function to connect to the MySQL database
 def create_connection():
     try:
         connection = mysql.connector.connect(host='localhost',
@@ -32,7 +31,9 @@ def create_connection():
         return connection
     except Error as e:
         st.error(f"Error connecting to MySQL: {str(e)}")
+        logging.error(f"Error connecting to MySQL: {str(e)}")
         return None
+
 
 # Function to insert generated ID card information into the database
 def insert_generated_card(id, name):
