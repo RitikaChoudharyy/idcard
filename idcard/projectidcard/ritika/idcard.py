@@ -10,8 +10,59 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
 import logging
+import mysql.connector
+from mysql.connector import Error
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
+
+# Function to connect to the MySQL database
+def create_connection():
+    try:
+        connection = mysql.connector.connect(host='localhost',
+                                             database='internship_details',
+                                             user='root',
+                                             password='Ritika@123')
+        if connection.is_connected():
+            db_info = connection.get_server_info()
+            print(f"Connected to MySQL Server version {db_info}")
+            cursor = connection.cursor()
+            cursor.execute("select database();")
+            record = cursor.fetchone()
+            print(f"You're connected to database: {record}")
+        return connection
+    except Error as e:
+        st.error(f"Error connecting to MySQL: {str(e)}")
+        return None
+
+# Function to insert generated ID card information into the database
+def insert_generated_card(id, name):
+    connection = create_connection()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            cursor.execute("INSERT INTO generated_cards (id, name) VALUES (%s, %s)", (id, name))
+            connection.commit()
+        except Error as e:
+            st.error(f"Error inserting into MySQL: {str(e)}")
+        finally:
+            cursor.close()
+            connection.close()
+
+# Function to check if an ID card has already been generated
+def check_generated_card(id):
+    connection = create_connection()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            cursor.execute("SELECT * FROM generated_cards WHERE id = %s", (id,))
+            record = cursor.fetchone()
+            return record is not None
+        except Error as e:
+            st.error(f"Error querying MySQL: {str(e)}")
+            return False
+        finally:
+            cursor.close()
+            connection.close()
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
@@ -265,9 +316,13 @@ def main():
                 st.warning('Invalid input. Please enter a valid numeric ID.')
             else:
                 selected_data = csv_data[csv_data['ID'] == int(id_input)].iloc[0]
-                generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
-                if generated_card:
-                    st.image(generated_card, caption=f"Generated ID Card for ID: {id_input}")
+                if check_generated_card(int(id_input)):
+                    st.warning(f"ID Card for ID {id_input} has already been generated.")
+                else:
+                    generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
+                    if generated_card:
+                        st.image(generated_card, caption=f"Generated ID Card for ID: {id_input}")
+                        insert_generated_card(int(id_input), selected_data['Name'])
 
     elif generate_mode == 'Comma-separated IDs':
         ids_input = st.text_input('Enter comma-separated IDs:')
@@ -276,10 +331,15 @@ def main():
             generated_cards = []
 
             for id_input in id_list:
+                if check_generated_card(id_input):
+                    st.warning(f"ID Card for ID {id_input} has already been generated.")
+                    continue
+
                 selected_data = csv_data[csv_data['ID'] == id_input].iloc[0]
                 generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
                 if generated_card:
                     generated_cards.append(generated_card)
+                    insert_generated_card(id_input, selected_data['Name'])
 
             if generated_cards:
                 st.success(f"Generated {len(generated_cards)} ID cards.")
@@ -300,9 +360,14 @@ def main():
         generated_cards = []
 
         for index, data in csv_data.iterrows():
+            if check_generated_card(data['ID']):
+                st.warning(f"ID Card for ID {data['ID']} has already been generated.")
+                continue
+
             generated_card = generate_card(data, template_path, image_folder, qr_folder)
             if generated_card:
                 generated_cards.append(generated_card)
+                insert_generated_card(data['ID'], data['Name'])
 
         if generated_cards:
             st.success(f"Generated {len(generated_cards)} ID cards.")
