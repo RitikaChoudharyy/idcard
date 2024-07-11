@@ -14,6 +14,32 @@ import logging
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
+def execute_mysql_query(query):
+    try:
+        # Replace with your MySQL connection details
+        connection = mysql.connector.connect(
+            host='localhost',
+            user=root',
+            password='Ritika@123',
+            database='id_card_db'
+        )
+        
+        cursor = connection.cursor()
+        cursor.execute(query)
+        
+        # Fetch all rows if it's a select query
+        if cursor.description is not None:
+            columns = [col[0] for col in cursor.description]
+            rows = cursor.fetchall()
+            result_df = pd.DataFrame(rows, columns=columns)
+            st.write(result_df)  # Display the result DataFrame
+
+        connection.commit()
+        connection.close()
+    except mysql.connector.Error as e:
+        st.error(f"Error executing query: {str(e)}")
+        logging.error(f"Error executing query: {str(e)}")
+
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
     try:
