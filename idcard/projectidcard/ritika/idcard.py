@@ -226,7 +226,7 @@ def main():
     # Streamlit setup
     st.title("Internship ID Card Generator")
     st.write("Upload your Excel sheet containing intern data:")
-    uploaded_file = st.file_uploader("Choose an Excel file", type="xlsx")
+    uploaded_file = st.file_uploader("Choose an Excel file", type="csv")
 
     if uploaded_file is not None:
         try:
