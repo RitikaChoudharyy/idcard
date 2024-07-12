@@ -1,15 +1,11 @@
 import streamlit as st
 import os
-import psycopg2
+import psycopg2  # Import psycopg2 here after installation
 from PIL import Image, ImageDraw, ImageFont
-from reportlab.lib.pagesizes import letter, inch
-from reportlab.pdfgen import canvas
 import logging
 import base64
 import textwrap
-import mysql.connector
 import pandas as pd
-from sqlalchemy import create_engine
 
 # PostgreSQL connection details
 postgres_config = {
@@ -19,6 +15,8 @@ postgres_config = {
     'password': 'Ritika@123',
     'database': 'id_card_db'
 }
+
+# Function to store CSV data into PostgreSQL
 def store_csv_to_postgresql(csv_data):
     try:
         conn = psycopg2.connect(**postgres_config)
@@ -51,11 +49,11 @@ def store_csv_to_postgresql(csv_data):
         conn.commit()
         conn.close()
 
-        print("CSV data stored to PostgreSQL database successfully.")
+        st.write("CSV data stored to PostgreSQL database successfully.")
 
     except psycopg2.Error as e:
-        print(f"Error storing CSV data to PostgreSQL: {e}")
-
+        st.error(f"Error storing CSV data to PostgreSQL: {e}")
+        logging.error(f"Error storing CSV data to PostgreSQL: {e}")
 def get_postgres_engine(config):
     return create_engine(f"postgresql://{config['user']}:{config['password']}@{config['host']}:{config['port']}/{config['database']}")
 
