@@ -4,46 +4,40 @@ from PIL import Image, ImageDraw, ImageFont
 import logging
 import base64
 import textwrap
-import mysql.connector
+import psycopg2
 import pandas as pd
-from reportlab.lib.pagesizes import letter, inch
-from reportlab.pdfgen import canvas
 
-# MySQL connection details
-mysql_config = {
-    'host': 'localhost',
+
+# PostgreSQL connection details
+postgres_config = {
+    'dbname': 'id_card_db',
     'user': 'root',
-    'port': 3306,
     'password': 'Ritika@123',
-    'database': 'id_card_db'
+    'host': 'localhost',
+    'port': 3306  # Default PostgreSQL 
 }
 
-def get_mysql_connection(config):
-    return mysql.connector.connect(
-        host=config['host'],
-        user=config['user'],
-        port=config['port'],
-        password=config['password'],
-        database=config['database']
-    )
+# Function to establish PostgreSQL connection
+def get_postgres_connection(config):
+    conn = psycopg2.connect(**config)
+    return conn
 
-# Function to execute MySQL queries
-def execute_mysql_query(query):
+# Function to execute PostgreSQL queries
+def execute_postgres_query(query):
+    conn = get_postgres_connection(postgres_config)
     try:
-        connection = get_mysql_connection(mysql_config)
-        cursor = connection.cursor()
-        cursor.execute(query)
-        if cursor.with_rows:
-            result = cursor.fetchall()
-            result_df = pd.DataFrame(result, columns=cursor.column_names)
-            st.write(result_df)
-        connection.commit()
+        with conn.cursor() as cursor:
+            cursor.execute(query)
+            if cursor.description:
+                result = cursor.fetchall()
+                result_df = pd.DataFrame(result, columns=[col[0] for col in cursor.description])
+                st.write(result_df)
+            conn.commit()
     except Exception as e:
         st.error(f"Error executing query: {str(e)}")
         logging.error(f"Error executing query: {str(e)}")
     finally:
-        cursor.close()
-        connection.close()
+        conn.close()
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
@@ -170,11 +164,11 @@ def get_head_by_division(division_name):
 def clean_name(name):
     return name.strip().lower().replace(' ', '_').replace('/', '_')
 
-# Function to store CSV data into MySQL
-def store_csv_to_mysql(csv_data, table_name):
+# Function to store CSV data into PostgreSQL
+def store_csv_to_postgres(csv_data, table_name):
+    conn = get_postgres_connection(postgres_config)
     try:
-        connection = get_mysql_connection(mysql_config)
-        cursor = connection.cursor()
+        cursor = conn.cursor()
 
         # Clean column names
         csv_data.columns = [clean_name(col) for col in csv_data.columns]
@@ -185,26 +179,27 @@ def store_csv_to_mysql(csv_data, table_name):
         # Prepare placeholders for values in the insert query
         placeholders = ', '.join(['%s'] * len(csv_data.columns))
 
-        # Create the insert query
-        insert_query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
-
-        # Convert DataFrame rows to tuples to use with cursor.executemany
-        values = [tuple(row) for row in csv_data.values]
+        # Create the table with cleaned name
+        create_table_query = f"CREATE TABLE IF NOT EXISTS {table_name} ({', '.join([f'{col} VARCHAR(255)' for col in csv_data.columns])})"
+        cursor.execute(create_table_query)
 
         # Execute the insert query with multiple rows
-        cursor.executemany(insert_query, values)
-        connection.commit()
+        for _, row in csv_data.iterrows():
+            insert_query = f"INSERT INTO {table_name} ({columns}) VALUES ({', '.join(['%s']*len(row))})"
+            cursor.execute(insert_query, tuple(row))
 
-        st.success(f"CSV data stored to MySQL database successfully in table '{table_name}'.")
+        conn.commit()
 
-    except mysql.connector.Error as e:
-        st.error(f"Error storing CSV data to MySQL: {str(e)}")
-        logging.error(f"Error storing CSV data to MySQL: {str(e)}")
+        st.success(f"CSV data stored to PostgreSQL database successfully in table '{table_name}'.")
+
+    except psycopg2.Error as e:
+        st.error(f"Error storing CSV data to PostgreSQL: {str(e)}")
+        logging.error(f"Error storing CSV data to PostgreSQL: {str(e)}")
     finally:
         if 'cursor' in locals():
             cursor.close()
-        if 'connection' in locals():
-            connection.close()
+        if 'conn' in locals():
+            conn.close()
 
 # Function to generate download link for binary files
 def get_binary_file_downloader_html(bin_file, file_label='File'):
@@ -233,19 +228,19 @@ def main():
                 csv_data = pd.read_csv(csv_file)
                 table_name = os.path.splitext(os.path.basename(csv_file.name))[0]
                 st.sidebar.success(f'CSV file {csv_file.name} successfully uploaded/updated.')
-                store_csv_to_mysql(csv_data, table_name)  # Automatically store CSV data into MySQL
+                store_csv_to_postgres(csv_data, table_name)  # Automatically store CSV data into PostgreSQL
             except Exception as e:
                 st.error(f"Error reading CSV file {csv_file.name}: {str(e)}")
 
-    # Section for MySQL query execution
-    st.sidebar.header('MySQL Query Execution')
-    query = st.sidebar.text_area("Enter MySQL Query")
+    # Section for PostgreSQL query execution
+    st.sidebar.header('PostgreSQL Query Execution')
+    query = st.sidebar.text_area("Enter PostgreSQL Query")
     
     if st.sidebar.button("Execute Query"):
         if query:
-            execute_mysql_query(query)
+            execute_postgres_query(query)
         else:
-            st.sidebar.error("Please enter a MySQL query.")
+            st.sidebar.error("Please enter a PostgreSQL query.")
 
     # Section to generate ID cards
     st.subheader('Generate ID Cards')
