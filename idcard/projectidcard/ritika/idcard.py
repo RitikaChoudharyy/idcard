@@ -44,6 +44,34 @@ def execute_query(query):
         if connection.is_connected():
             cursor.close()
             connection.close()
+# Function to insert data into MySQL database
+def bulk_insert_to_sql(table_name, df):
+    try:
+        connection = mysql.connector.connect(host='localhost',
+                                             database='internship_details',
+                                             user='root',
+                                             password='Ritika@123')
+        if connection.is_connected():
+            cursor = connection.cursor()
+            columns = ", ".join(df.columns)
+            for i, row in df.iterrows():
+                sql = f"INSERT INTO {table_name} ({columns}) VALUES ({', '.join(['%s'] * len(row))})"
+                cursor.execute(sql, tuple(row))
+            connection.commit()
+            st.success("Data inserted successfully!")
+    except Exception as e:
+        st.error(f"Error: {e}")
+    finally:
+        if connection.is_connected():
+            cursor.close()
+            connection.close()
+
+# Function to retrieve and display all data from a SQL table
+def display_all_data(table_name):
+    query = f"SELECT * FROM {table_name}"
+    execute_query(query)
+
+
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
     try:
@@ -225,46 +253,6 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
-# Function to clean table and column names
-def clean_name(name):
-    return name.strip().lower().replace(' ', '_').replace('/', '_')
-
-# Function to store CSV data into MySQL
-def store_csv_to_mysql(csv_data, table_name):
-    conn = get_mysql_connection(mysql_config)
-    try:
-        cursor = conn.cursor()
-
-        # Clean column names
-        csv_data.columns = [clean_name(col) for col in csv_data.columns]
-
-        # Generate column names for the insert query
-        columns = ', '.join(csv_data.columns)
-
-        # Prepare placeholders for values in the insert query
-        placeholders = ', '.join(['%s'] * len(csv_data.columns))
-
-        # Create the table with cleaned name
-        create_table_query = f"CREATE TABLE IF NOT EXISTS {table_name} ({', '.join([f'{col} VARCHAR(255)' for col in csv_data.columns])})"
-        cursor.execute(create_table_query)
-
-        # Execute the insert query with multiple rows
-        for _, row in csv_data.iterrows():
-            insert_query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
-            cursor.execute(insert_query, tuple(row))
-
-        conn.commit()
-
-        st.success(f"CSV data stored to MySQL database successfully in table '{table_name}'.")
-
-    except Error as e:
-        st.error(f"Error storing CSV data to MySQL: {str(e)}")
-        logging.error(f"Error storing CSV data to MySQL: {str(e)}")
-    finally:
-        if 'cursor' in locals():
-            cursor.close()
-        if 'conn' in locals():
-            conn.close()
 
 # Function to generate download link for binary files
 def get_binary_file_downloader_html(bin_file, file_label='File'):
@@ -286,16 +274,48 @@ def main():
     st.sidebar.header('Manage CSV')
 
     csv_files = st.sidebar.file_uploader("Upload or Update your CSV files", type=['csv'], accept_multiple_files=True, key='csv_uploader')
+    if csv_file is not None:
+        try:
+            csv_data = pd.read_csv(csv_file)
+            st.sidebar.success('CSV file successfully uploaded/updated.')
 
-    if csv_files is not None:
-        for csv_file in csv_files:
-            try:
-                csv_data = pd.read_csv(csv_file)
-                table_name = os.path.splitext(os.path.basename(csv_file.name))[0]
-                st.sidebar.success(f'CSV file {csv_file.name} successfully uploaded/updated.')
-                store_csv_to_mysql(csv_data, table_name)  # Automatically store CSV data into MySQL
-            except Exception as e:
-                st.error(f"Error reading CSV file {csv_file.name}: {str(e)}")
+            # Checkbox for modifying CSV in sidebar
+            modified_csv = st.sidebar.checkbox('Modify CSV')
+            if modified_csv:
+                st.subheader('Edit CSV')
+                # Display editable DataFrame below the checkbox
+                with st.expander("View/Modify CSV"):
+                    grid_response = AgGrid(
+                        csv_data,
+                        editable=True,
+                        height=400,
+                        fit_columns_on_grid_load=True,
+                    )
+                    df_edited = grid_response['data']
+
+                    # Automatically save changes to CSV when data is edited
+                    if st.session_state.get('csv_data_updated', False):
+                        df_edited.to_csv(csv_file.name, index=False)
+                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
+                        st.session_state['csv_data_updated'] = False  # Reset the flag
+
+                    # Store initial state of csv_data in session state
+                    if 'csv_data' not in st.session_state:
+                        st.session_state['csv_data'] = csv_data
+
+                    # Check for changes in data and update session state if needed
+                    if not df_edited.equals(st.session_state['csv_data']):
+                        st.session_state['csv_data_updated'] = True
+                        st.session_state['csv_data'] = df_edited.copy()
+
+                    # Button to manually save changes
+                    if st.button('Save Changes'):
+                        df_edited.to_csv(csv_file.name, index=False)
+                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
+
+        except Exception as e:
+            st.error(f"Error reading CSV file: {str(e)}")
+
 
     # Section for MySQL query execution
     st.sidebar.header('MySQL Query Execution')
@@ -306,7 +326,20 @@ def main():
             execute_mysql_query(query)
         else:
             st.sidebar.error("Please enter a MySQL query.")
-
+      
+    if st.button("Bulk Insert Edited Data to MySQL"):
+        table_name = st.text_input("Enter table name")
+        if table_name:
+            bulk_insert_to_sql(table_name, edited_data)
+        else:
+            st.error("Please provide a table name.")
+    
+    if st.button("Show Stored Data from MySQL"):
+        table_name = st.text_input("Enter table name for displaying data")
+        if table_name:
+            display_all_data(table_name)
+        else:
+            st.error("Please provide a table name.")
     # Section to generate ID cards
     st.subheader('Generate ID Cards')
     generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
