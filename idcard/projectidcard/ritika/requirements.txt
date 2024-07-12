@@ -1,3 +1,4 @@
+SQLAlchemy
 mysql.connector
 gspread
 google-api-python-client
