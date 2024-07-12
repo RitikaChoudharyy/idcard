@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 from PIL import Image, ImageDraw, ImageFont
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import letter, inch
 from reportlab.pdfgen import canvas
 import logging
 import base64
@@ -206,7 +206,6 @@ def create_pdf(images, pdf_path):
         logging.error(f"Error creating PDF: {str(e)}")
         return None
 
-
 def display_pdf(pdf_path):
     try:
         with open(pdf_path, "rb") as f:
@@ -217,7 +216,53 @@ def display_pdf(pdf_path):
         st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
-        
+
+# Function to store CSV data into MySQL
+def store_csv_to_mysql(csv_data):
+    try:
+        connection = mysql.connector.connect(**mysql_config)
+        cursor = connection.cursor()
+
+        for index, row in csv_data.iterrows():
+            query = """
+                INSERT INTO your_table_name (ID, Name, Division_Section, Internship_Start_Date, Internship_End_Date, Mobile, University)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                Name = VALUES(Name),
+                Division_Section = VALUES(Division_Section),
+                Internship_Start_Date = VALUES(Internship_Start_Date),
+                Internship_End_Date = VALUES(Internship_End_Date),
+                Mobile = VALUES(Mobile),
+                University = VALUES(University)
+            """
+            # Extract values from the row and execute the query
+            values = (
+                row['ID'], 
+                row['Name'], 
+                row['Division/Section'], 
+                row['Internship Start Date'], 
+                row['Internship End Date'], 
+                row['Mobile'], 
+                row['University']
+            )
+            cursor.execute(query, values)
+
+        connection.commit()
+        connection.close()
+
+        st.success("CSV data stored to MySQL database successfully.")
+
+    except mysql.connector.Error as e:
+        st.error(f"Error storing CSV data to MySQL: {str(e)}")
+        logging.error(f"Error storing CSV data to MySQL: {str(e)}")
+
+# Function to generate download link for binary files
+def get_binary_file_downloader_html(bin_file, file_label='File'):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    bin_str = base64.b64encode(data).decode()
+    return f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'
+
 def main():
     st.title("Automatic ID Card Generation")
 
@@ -226,16 +271,6 @@ def main():
     image_folder = "idcard/projectidcard/ritika/downloaded_images"
     qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
     output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"  # Default download path
-
-    # Section for MySQL query execution
-    st.sidebar.header('MySQL Query Execution')
-    query = st.sidebar.text_area("Enter MySQL Query")
-    
-    if st.sidebar.button("Execute Query"):
-        if query:
-            execute_mysql_query(query)
-        else:
-            st.sidebar.error("Please enter a MySQL query.")
 
     # Section for CSV management
     st.sidebar.header('Manage CSV')
@@ -246,21 +281,19 @@ def main():
         try:
             csv_data = pd.read_csv(csv_file)
             st.sidebar.success('CSV file successfully uploaded/updated.')
-
-            # Button to store CSV data into MySQL
-            if st.sidebar.button('Store CSV Data into MySQL'):
-                store_csv_to_mysql(csv_data)
-
-            # Checkbox for modifying CSV in sidebar
-            modified_csv = st.sidebar.checkbox('Modify CSV')
-            if modified_csv:
-                st.subheader('Edit CSV')
-                # Display editable DataFrame below the checkbox
-                with st.expander("View/Modify CSV"):
-                    grid_response = st.write(csv_data)  # Display CSV data in an editable grid
-
+            store_csv_to_mysql(csv_data)  # Automatically store CSV data into MySQL
         except Exception as e:
             st.error(f"Error reading CSV file: {str(e)}")
+
+    # Section for MySQL query execution
+    st.sidebar.header('MySQL Query Execution')
+    query = st.sidebar.text_area("Enter MySQL Query")
+    
+    if st.sidebar.button("Execute Query"):
+        if query:
+            execute_mysql_query(query)
+        else:
+            st.sidebar.error("Please enter a MySQL query.")
 
     # Section to generate ID cards
     st.subheader('Generate ID Cards')
@@ -323,52 +356,6 @@ def main():
                 st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
             else:
                 st.error("Failed to create PDF.")
-
-# Function to store CSV data into MySQL
-def store_csv_to_mysql(csv_data):
-    try:
-        connection = mysql.connector.connect(**mysql_config)
-        cursor = connection.cursor()
-
-        for index, row in csv_data.iterrows():
-            query = """
-                INSERT INTO your_table_name (ID, Name, Division_Section, Internship_Start_Date, Internship_End_Date, Mobile, University)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE
-                Name = VALUES(Name),
-                Division_Section = VALUES(Division_Section),
-                Internship_Start_Date = VALUES(Internship_Start_Date),
-                Internship_End_Date = VALUES(Internship_End_Date),
-                Mobile = VALUES(Mobile),
-                University = VALUES(University)
-            """
-            # Extract values from the row and execute the query
-            values = (
-                row['ID'], 
-                row['Name'], 
-                row['Division/Section'], 
-                row['Internship Start Date'], 
-                row['Internship End Date'], 
-                row['Mobile'], 
-                row['University']
-            )
-            cursor.execute(query, values)
-
-        connection.commit()
-        connection.close()
-
-        st.success("CSV data stored to MySQL database successfully.")
-
-    except mysql.connector.Error as e:
-        st.error(f"Error storing CSV data to MySQL: {str(e)}")
-        logging.error(f"Error storing CSV data to MySQL: {str(e)}")
-
-# Function to generate download link for binary files
-def get_binary_file_downloader_html(bin_file, file_label='File'):
-    with open(bin_file, 'rb') as f:
-        data = f.read()
-    bin_str = base64.b64encode(data).decode()
-    return f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'
 
 if __name__ == "__main__":
     main()
