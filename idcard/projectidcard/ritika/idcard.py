@@ -287,7 +287,7 @@ def main():
 
     csv_files = st.sidebar.file_uploader("Upload or Update your CSV files", type=['csv'], accept_multiple_files=True, key='csv_uploader')
 
-if csv_files is not None:
+    if csv_files is not None:
         try:
             csv_data = pd.read_csv(csv_files[0])  # Assuming you are using the first file if multiple are uploaded
             st.sidebar.success('CSV file successfully uploaded/updated.')
@@ -328,6 +328,7 @@ if csv_files is not None:
 
         except Exception as e:
             st.error(f"Error reading CSV file: {str(e)}")
+    
     # Section for MySQL query execution
     st.sidebar.header('MySQL Query Execution')
     query = st.sidebar.text_area("Enter MySQL Query")
