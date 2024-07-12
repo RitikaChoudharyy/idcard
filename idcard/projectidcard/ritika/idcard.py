@@ -10,7 +10,7 @@ import pandas as pd
 
 # PostgreSQL connection details
 postgres_config = {
-    'dbname': 'id_card_db',
+    'dbname': 'internship_data',
     'user': 'root',
     'password': 'Ritika@123',
     'host': 'localhost',
