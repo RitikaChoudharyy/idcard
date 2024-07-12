@@ -166,66 +166,6 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
-def create_pdf(images, pdf_path):
-    try:
-        c = canvas.Canvas(pdf_path, pagesize=letter)
-
-        # Define the dimensions and spacing for the grid
-        grid_width = 2
-        grid_height = 4
-        image_width = 3.575 * inch
-        image_height = 2.325 * inch
-        spacing_x = 1.5 * mm
-        spacing_y = 1.5 * mm
-
-        # Calculate total width and height of the grid
-        total_width = grid_width * (image_width + spacing_x)
-        total_height = grid_height * (image_height + spacing_y)
-
-        # Track the current page
-        current_page = 0
-
-        for i, image in enumerate(images):
-            col = i % grid_width
-            row = i // grid_width
-
-            # Check if the current page is filled and there are more images to be processed
-            if i > 0 and i % (grid_width * grid_height) == 0:
-                # Start a new page
-                current_page += 1
-                c.showPage()
-
-            # Calculate the starting position for each new page
-            start_x = (letter[0] - total_width) / 2
-            start_y = (letter[1] - total_height) / 2 - current_page * total_height
-
-            # Calculate the position for the current image on the current page
-            x = start_x + col * (image_width + spacing_x)
-            y = start_y + row * (image_height + spacing_y)
-
-            # Draw the image on the canvas
-            c.drawInlineImage(image, x, y, width=image_width, height=image_height)
-
-        # Save the PDF to the specified path
-        c.save()
-
-        return pdf_path  # Return the path where the PDF is saved
-
-    except Exception as e:
-        logging.error(f"Error creating PDF: {str(e)}")
-        return None
-
-def display_pdf(pdf_path):
-    try:
-        with open(pdf_path, "rb") as f:
-            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
-            pdf_display = f'<a href="data:application/pdf;base64,{base64_pdf}" download="generated_id_cards.pdf">Download PDF</a>'
-            st.markdown(pdf_display, unsafe_allow_html=True)
-    except FileNotFoundError:
-        st.error(f"PDF file '{pdf_path}' not found.")
-    except Exception as e:
-        st.error(f"Error displaying PDF: {str(e)}")
-
 # Function to clean table and column names
 def clean_name(name):
     return name.strip().lower().replace(' ', '_').replace('/', '_')
@@ -257,12 +197,14 @@ def store_csv_to_mysql(csv_data, table_name):
 
         st.success(f"CSV data stored to MySQL database successfully in table '{table_name}'.")
 
-    except Exception as e:
+    except mysql.connector.Error as e:
         st.error(f"Error storing CSV data to MySQL: {str(e)}")
         logging.error(f"Error storing CSV data to MySQL: {str(e)}")
     finally:
-        cursor.close()
-        connection.close()
+        if 'cursor' in locals():
+            cursor.close()
+        if 'connection' in locals():
+            connection.close()
 
 # Function to generate download link for binary files
 def get_binary_file_downloader_html(bin_file, file_label='File'):
