@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import os
@@ -11,27 +10,26 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
 import logging
-import psycopg2
-import pandas as pd
+import mysql.connector
+from mysql.connector import Error
 
-
-# PostgreSQL connection details
-postgres_config = {
-    'dbname': 'internship_data',
+# MySQL connection details
+mysql_config = {
+    'database': 'internship_data',
     'user': 'root',
     'password': 'Ritika@123',
     'host': 'localhost',
-    'port': 3306  # Default PostgreSQL 
+    'port': 3306  # Default MySQL port
 }
 
-# Function to establish PostgreSQL connection
-def get_postgres_connection(config):
-    conn = psycopg2.connect(**config)
+# Function to establish MySQL connection
+def get_mysql_connection(config):
+    conn = mysql.connector.connect(**config)
     return conn
 
-# Function to execute PostgreSQL queries
-def execute_postgres_query(query):
-    conn = get_postgres_connection(postgres_config)
+# Function to execute MySQL queries
+def execute_mysql_query(query):
+    conn = get_mysql_connection(mysql_config)
     try:
         with conn.cursor() as cursor:
             cursor.execute(query)
@@ -131,7 +129,6 @@ def generate_card(data, template_path, image_folder, qr_folder):
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
 
-
 def create_pdf(images, pdf_path):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
@@ -180,7 +177,6 @@ def create_pdf(images, pdf_path):
     except Exception as e:
         logging.error(f"Error creating PDF: {str(e)}")
         return None
-
 
 def display_pdf(pdf_path):
     try:
@@ -233,9 +229,9 @@ def get_head_by_division(division_name):
 def clean_name(name):
     return name.strip().lower().replace(' ', '_').replace('/', '_')
 
-# Function to store CSV data into PostgreSQL
-def store_csv_to_postgres(csv_data, table_name):
-    conn = get_postgres_connection(postgres_config)
+# Function to store CSV data into MySQL
+def store_csv_to_mysql(csv_data, table_name):
+    conn = get_mysql_connection(mysql_config)
     try:
         cursor = conn.cursor()
 
@@ -254,16 +250,16 @@ def store_csv_to_postgres(csv_data, table_name):
 
         # Execute the insert query with multiple rows
         for _, row in csv_data.iterrows():
-            insert_query = f"INSERT INTO {table_name} ({columns}) VALUES ({', '.join(['%s']*len(row))})"
+            insert_query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
             cursor.execute(insert_query, tuple(row))
 
         conn.commit()
 
-        st.success(f"CSV data stored to PostgreSQL database successfully in table '{table_name}'.")
+        st.success(f"CSV data stored to MySQL database successfully in table '{table_name}'.")
 
-    except psycopg2.Error as e:
-        st.error(f"Error storing CSV data to PostgreSQL: {str(e)}")
-        logging.error(f"Error storing CSV data to PostgreSQL: {str(e)}")
+    except Error as e:
+        st.error(f"Error storing CSV data to MySQL: {str(e)}")
+        logging.error(f"Error storing CSV data to MySQL: {str(e)}")
     finally:
         if 'cursor' in locals():
             cursor.close()
@@ -297,19 +293,19 @@ def main():
                 csv_data = pd.read_csv(csv_file)
                 table_name = os.path.splitext(os.path.basename(csv_file.name))[0]
                 st.sidebar.success(f'CSV file {csv_file.name} successfully uploaded/updated.')
-                store_csv_to_postgres(csv_data, table_name)  # Automatically store CSV data into PostgreSQL
+                store_csv_to_mysql(csv_data, table_name)  # Automatically store CSV data into MySQL
             except Exception as e:
                 st.error(f"Error reading CSV file {csv_file.name}: {str(e)}")
 
-    # Section for PostgreSQL query execution
-    st.sidebar.header('PostgreSQL Query Execution')
-    query = st.sidebar.text_area("Enter PostgreSQL Query")
+    # Section for MySQL query execution
+    st.sidebar.header('MySQL Query Execution')
+    query = st.sidebar.text_area("Enter MySQL Query")
     
     if st.sidebar.button("Execute Query"):
         if query:
-            execute_postgres_query(query)
+            execute_mysql_query(query)
         else:
-            st.sidebar.error("Please enter a PostgreSQL query.")
+            st.sidebar.error("Please enter a MySQL query.")
 
     # Section to generate ID cards
     st.subheader('Generate ID Cards')
