@@ -13,7 +13,6 @@ from sqlalchemy import create_engine
 # PostgreSQL connection details
 postgres_config = {
     'host': 'localhost',
-    'port': '5432',
     'user': 'root',
     'password': 'Ritika@123',
     'database': 'id_card_db'
