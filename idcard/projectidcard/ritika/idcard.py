@@ -13,37 +13,37 @@ import logging
 import mysql.connector
 from mysql.connector import Error
 
-# MySQL connection details
-mysql_config = {
-    'database': 'internship_data',
-    'user': 'root',
-    'password': 'Ritika@123',
-    'host': 'localhost',
-    'port': 3306  # Default MySQL port
-}
-
-# Function to establish MySQL connection
-def get_mysql_connection(config):
-    conn = mysql.connector.connect(**config)
-    return conn
-
 # Function to execute MySQL queries
-def execute_mysql_query(query):
-    conn = get_mysql_connection(mysql_config)
+def execute_query(query):
     try:
-        with conn.cursor() as cursor:
+        connection = mysql.connector.connect(host='localhost',
+                                             database='internship_data',
+                                             user='root',
+                                             password='Ritika@123')
+        if connection.is_connected():
+            cursor = connection.cursor()
             cursor.execute(query)
-            if cursor.description:
-                result = cursor.fetchall()
-                result_df = pd.DataFrame(result, columns=[col[0] for col in cursor.description])
-                st.write(result_df)
-            conn.commit()
-    except Exception as e:
-        st.error(f"Error executing query: {str(e)}")
-        logging.error(f"Error executing query: {str(e)}")
-    finally:
-        conn.close()
+            records = cursor.fetchall()
+            st.write("Query executed successfully!")
+            st.write("Local Address:", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            if records:
+                st.write("Query Result:")
+                df = pd.DataFrame(records, columns=[i[0] for i in cursor.description])
+                st.write(df)
 
+                fig = go.Figure()
+                for col in df.columns:
+                    if df[col].dtype == 'int64' or df[col].dtype == 'float64':
+                        fig.add_trace(go.Scatter(x=df.index, y=df[col], mode='lines+markers', name=col))
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.write("No records found.")
+    except Exception as e:
+        st.error(f"Error: {e}")
+    finally:
+        if connection.is_connected():
+            cursor.close()
+            connection.close()
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
     try:
