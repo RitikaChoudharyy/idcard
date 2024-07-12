@@ -12,11 +12,11 @@ from sqlalchemy import create_engine
 
 # PostgreSQL connection details
 postgres_config = {
-    'host': 'your_aws_host',
-    'port': 'your_port',
-    'user': 'your_username',
-    'password': 'your_password',
-    'database': 'your_database'
+    'host': 'localhost',
+    'port': '5432',
+    'user': 'root',
+    'password': 'Ritika@123',
+    'database': 'id_card_db'
 }
 
 def get_postgres_engine(config):
