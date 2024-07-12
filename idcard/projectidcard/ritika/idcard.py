@@ -8,31 +8,30 @@ import base64
 import textwrap
 import mysql.connector
 import pandas as pd
+from sqlalchemy import create_engine
 
-# MySQL connection details
-mysql_config = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': 'Ritika@123',
-    'database': 'id_card_db'
+# PostgreSQL connection details
+postgres_config = {
+    'host': 'your_aws_host',
+    'port': 'your_port',
+    'user': 'your_username',
+    'password': 'your_password',
+    'database': 'your_database'
 }
 
-# Function to execute MySQL queries
-def execute_mysql_query(query):
-    try:
-        connection = mysql.connector.connect(**mysql_config)
-        cursor = connection.cursor(dictionary=True)
-        cursor.execute(query)
-        
-        if cursor.description is not None:
-            columns = [col[0] for col in cursor.description]
-            rows = cursor.fetchall()
-            result_df = pd.DataFrame(rows, columns=columns)
-            st.write(result_df)  # Display the result DataFrame
+def get_postgres_engine(config):
+    return create_engine(f"postgresql://{config['user']}:{config['password']}@{config['host']}:{config['port']}/{config['database']}")
 
-        connection.commit()
-        connection.close()
-    except mysql.connector.Error as e:
+# Function to execute PostgreSQL queries
+def execute_postgres_query(query):
+    try:
+        engine = get_postgres_engine(postgres_config)
+        with engine.connect() as connection:
+            result = connection.execute(query)
+            if result.returns_rows:
+                result_df = pd.DataFrame(result.fetchall(), columns=result.keys())
+                st.write(result_df)
+    except Exception as e:
         st.error(f"Error executing query: {str(e)}")
         logging.error(f"Error executing query: {str(e)}")
 
@@ -217,44 +216,26 @@ def display_pdf(pdf_path):
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
 
-# Function to store CSV data into MySQL
-def store_csv_to_mysql(csv_data):
+# Function to clean table and column names
+def clean_name(name):
+    return name.strip().lower().replace(' ', '_').replace('/', '_')
+
+# Function to store CSV data into PostgreSQL
+def store_csv_to_postgres(csv_data, table_name):
     try:
-        connection = mysql.connector.connect(**mysql_config)
-        cursor = connection.cursor()
+        engine = get_postgres_engine(postgres_config)
+        table_name_cleaned = clean_name(table_name)
 
-        for index, row in csv_data.iterrows():
-            query = """
-                INSERT INTO your_table_name (ID, Name, Division_Section, Internship_Start_Date, Internship_End_Date, Mobile, University)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE
-                Name = VALUES(Name),
-                Division_Section = VALUES(Division_Section),
-                Internship_Start_Date = VALUES(Internship_Start_Date),
-                Internship_End_Date = VALUES(Internship_End_Date),
-                Mobile = VALUES(Mobile),
-                University = VALUES(University)
-            """
-            # Extract values from the row and execute the query
-            values = (
-                row['ID'], 
-                row['Name'], 
-                row['Division/Section'], 
-                row['Internship Start Date'], 
-                row['Internship End Date'], 
-                row['Mobile'], 
-                row['University']
-            )
-            cursor.execute(query, values)
+        # Clean column names
+        csv_data.columns = [clean_name(col) for col in csv_data.columns]
 
-        connection.commit()
-        connection.close()
+        csv_data.to_sql(table_name_cleaned, engine, if_exists='replace', index=False)
 
-        st.success("CSV data stored to MySQL database successfully.")
+        st.success(f"CSV data stored to PostgreSQL database successfully in table '{table_name_cleaned}'.")
 
-    except mysql.connector.Error as e:
-        st.error(f"Error storing CSV data to MySQL: {str(e)}")
-        logging.error(f"Error storing CSV data to MySQL: {str(e)}")
+    except Exception as e:
+        st.error(f"Error storing CSV data to PostgreSQL: {str(e)}")
+        logging.error(f"Error storing CSV data to PostgreSQL: {str(e)}")
 
 # Function to generate download link for binary files
 def get_binary_file_downloader_html(bin_file, file_label='File'):
@@ -275,25 +256,27 @@ def main():
     # Section for CSV management
     st.sidebar.header('Manage CSV')
 
-    csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
+    csv_files = st.sidebar.file_uploader("Upload or Update your CSV files", type=['csv'], accept_multiple_files=True, key='csv_uploader')
 
-    if csv_file is not None:
-        try:
-            csv_data = pd.read_csv(csv_file)
-            st.sidebar.success('CSV file successfully uploaded/updated.')
-            store_csv_to_mysql(csv_data)  # Automatically store CSV data into MySQL
-        except Exception as e:
-            st.error(f"Error reading CSV file: {str(e)}")
+    if csv_files is not None:
+        for csv_file in csv_files:
+            try:
+                csv_data = pd.read_csv(csv_file)
+                table_name = os.path.splitext(os.path.basename(csv_file.name))[0]
+                st.sidebar.success(f'CSV file {csv_file.name} successfully uploaded/updated.')
+                store_csv_to_postgres(csv_data, table_name)  # Automatically store CSV data into PostgreSQL
+            except Exception as e:
+                st.error(f"Error reading CSV file {csv_file.name}: {str(e)}")
 
-    # Section for MySQL query execution
-    st.sidebar.header('MySQL Query Execution')
-    query = st.sidebar.text_area("Enter MySQL Query")
+    # Section for PostgreSQL query execution
+    st.sidebar.header('PostgreSQL Query Execution')
+    query = st.sidebar.text_area("Enter PostgreSQL Query")
     
     if st.sidebar.button("Execute Query"):
         if query:
-            execute_mysql_query(query)
+            execute_postgres_query(query)
         else:
-            st.sidebar.error("Please enter a MySQL query.")
+            st.sidebar.error("Please enter a PostgreSQL query.")
 
     # Section to generate ID cards
     st.subheader('Generate ID Cards')
