@@ -24,8 +24,13 @@ mysql_config = {
 
 # Function to establish MySQL connection
 def get_mysql_connection(config):
-    conn = mysql.connector.connect(**config)
-    return conn
+    try:
+        conn = mysql.connector.connect(**config)
+        logging.debug(f"Connected to MySQL server: {config['host']}:{config['port']} as user '{config['user']}'")
+        return conn
+    except Exception as e:
+        logging.error(f"Error connecting to MySQL server: {str(e)}")
+        raise  # Raise the exception to propagate the error
 
 # Function to execute MySQL queries
 def execute_mysql_query(query):
