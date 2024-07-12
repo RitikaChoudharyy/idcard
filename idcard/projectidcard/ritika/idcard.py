@@ -1,11 +1,16 @@
+
 import streamlit as st
 import os
-import psycopg2  # Import psycopg2 here after installation
+import psycopg2
 from PIL import Image, ImageDraw, ImageFont
+from reportlab.lib.pagesizes import letter, inch
+from reportlab.pdfgen import canvas
 import logging
 import base64
 import textwrap
+import mysql.connector
 import pandas as pd
+from sqlalchemy import create_engine
 
 # PostgreSQL connection details
 postgres_config = {
