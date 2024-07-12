@@ -1,4 +1,3 @@
-import streamlit as st
 import pandas as pd
 import os
 from PIL import Image, ImageDraw, ImageFont
@@ -8,8 +7,10 @@ import base64
 from st_aggrid import AgGrid
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
+from reportlab.lib.units import inch, mm
 import logging
 import mysql.connector
+from mysql.connector import Error
 
 # Function to execute MySQL queries
 def execute_query(query):
@@ -42,7 +43,6 @@ def execute_query(query):
         if connection.is_connected():
             cursor.close()
             connection.close()
-
 # Function to insert data into MySQL database
 def bulk_insert_to_sql(table_name, df):
     try:
@@ -69,6 +69,7 @@ def bulk_insert_to_sql(table_name, df):
 def display_all_data(table_name):
     query = f"SELECT * FROM {table_name}"
     execute_query(query)
+
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
@@ -251,6 +252,7 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
+
 # Function to generate download link for binary files
 def get_binary_file_downloader_html(bin_file, file_label='File'):
     with open(bin_file, 'rb') as f:
@@ -271,9 +273,9 @@ def main():
     st.sidebar.header('Manage CSV')
 
     csv_files = st.sidebar.file_uploader("Upload or Update your CSV files", type=['csv'], accept_multiple_files=True, key='csv_uploader')
-    if csv_files is not None:
+    if csv_file is not None:
         try:
-            csv_data = pd.read_csv(csv_files[0])  # Assuming you are using the first file if multiple are uploaded
+            csv_data = pd.read_csv(csv_file)
             st.sidebar.success('CSV file successfully uploaded/updated.')
 
             # Checkbox for modifying CSV in sidebar
@@ -292,8 +294,8 @@ def main():
 
                     # Automatically save changes to CSV when data is edited
                     if st.session_state.get('csv_data_updated', False):
-                        df_edited.to_csv(csv_files[0].name, index=False)
-                        st.success(f'CSV file "{csv_files[0].name}" updated successfully.')
+                        df_edited.to_csv(csv_file.name, index=False)
+                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
                         st.session_state['csv_data_updated'] = False  # Reset the flag
 
                     # Store initial state of csv_data in session state
@@ -307,8 +309,8 @@ def main():
 
                     # Button to manually save changes
                     if st.button('Save Changes'):
-                        df_edited.to_csv(csv_files[0].name, index=False)
-                        st.success(f'CSV file "{csv_files[0].name}" updated successfully.')
+                        df_edited.to_csv(csv_file.name, index=False)
+                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
 
         except Exception as e:
             st.error(f"Error reading CSV file: {str(e)}")
@@ -320,14 +322,14 @@ def main():
     
     if st.sidebar.button("Execute Query"):
         if query:
-            execute_query(query)
+            execute_mysql_query(query)
         else:
             st.sidebar.error("Please enter a MySQL query.")
       
     if st.button("Bulk Insert Edited Data to MySQL"):
         table_name = st.text_input("Enter table name")
         if table_name:
-            bulk_insert_to_sql(table_name, df_edited)
+            bulk_insert_to_sql(table_name, edited_data)
         else:
             st.error("Please provide a table name.")
     
