@@ -1,9 +1,15 @@
 import streamlit as st
+import pandas as pd
 import os
 from PIL import Image, ImageDraw, ImageFont
-import logging
-import base64
 import textwrap
+from fpdf import FPDF
+import base64
+from st_aggrid import AgGrid
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.units import inch, mm
+import logging
 import psycopg2
 import pandas as pd
 
