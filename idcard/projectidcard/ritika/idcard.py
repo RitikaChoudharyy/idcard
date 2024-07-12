@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import psycopg2
 from PIL import Image, ImageDraw, ImageFont
 from reportlab.lib.pagesizes import letter, inch
 from reportlab.pdfgen import canvas
@@ -18,6 +19,42 @@ postgres_config = {
     'password': 'Ritika@123',
     'database': 'id_card_db'
 }
+def store_csv_to_postgresql(csv_data):
+    try:
+        conn = psycopg2.connect(**postgres_config)
+        cursor = conn.cursor()
+
+        for index, row in csv_data.iterrows():
+            query = """
+                INSERT INTO your_table_name (ID, Name, Division_Section, Internship_Start_Date, Internship_End_Date, Mobile, University)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (ID) DO UPDATE
+                SET Name = EXCLUDED.Name,
+                    Division_Section = EXCLUDED.Division_Section,
+                    Internship_Start_Date = EXCLUDED.Internship_Start_Date,
+                    Internship_End_Date = EXCLUDED.Internship_End_Date,
+                    Mobile = EXCLUDED.Mobile,
+                    University = EXCLUDED.University
+            """
+            # Extract values from the row and execute the query
+            values = (
+                row['ID'], 
+                row['Name'], 
+                row['Division/Section'], 
+                row['Internship Start Date'], 
+                row['Internship End Date'], 
+                row['Mobile'], 
+                row['University']
+            )
+            cursor.execute(query, values)
+
+        conn.commit()
+        conn.close()
+
+        print("CSV data stored to PostgreSQL database successfully.")
+
+    except psycopg2.Error as e:
+        print(f"Error storing CSV data to PostgreSQL: {e}")
 
 def get_postgres_engine(config):
     return create_engine(f"postgresql://{config['user']}:{config['password']}@{config['host']}:{config['port']}/{config['database']}")
@@ -341,4 +378,6 @@ def main():
                 st.error("Failed to create PDF.")
 
 if __name__ == "__main__":
-    main()
+    # Assuming csv_data is a pandas DataFrame read from a CSV file
+    csv_data = pd.read_csv('your_csv_file.csv')
+    store_csv_to_postgresql(csv_data)
