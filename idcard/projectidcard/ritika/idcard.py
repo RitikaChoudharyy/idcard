@@ -14,6 +14,7 @@ from sqlalchemy import create_engine
 postgres_config = {
     'host': 'localhost',
     'user': 'root',
+    'port': '5432',
     'password': 'Ritika@123',
     'database': 'id_card_db'
 }
