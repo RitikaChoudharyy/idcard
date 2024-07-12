@@ -287,16 +287,47 @@ def main():
 
     csv_files = st.sidebar.file_uploader("Upload or Update your CSV files", type=['csv'], accept_multiple_files=True, key='csv_uploader')
 
-    if csv_files is not None:
-        for csv_file in csv_files:
-            try:
-                csv_data = pd.read_csv(csv_file)
-                table_name = os.path.splitext(os.path.basename(csv_file.name))[0]
-                st.sidebar.success(f'CSV file {csv_file.name} successfully uploaded/updated.')
-                store_csv_to_mysql(csv_data, table_name)  # Automatically store CSV data into MySQL
-            except Exception as e:
-                st.error(f"Error reading CSV file {csv_file.name}: {str(e)}")
+   if csv_files is not None:
+        try:
+            csv_data = pd.read_csv(csv_files[0])  # Assuming you are using the first file if multiple are uploaded
+            st.sidebar.success('CSV file successfully uploaded/updated.')
 
+            # Checkbox for modifying CSV in sidebar
+            modified_csv = st.sidebar.checkbox('Modify CSV')
+            if modified_csv:
+                st.subheader('Edit CSV')
+                # Display editable DataFrame below the checkbox
+                with st.expander("View/Modify CSV"):
+                    grid_response = AgGrid(
+                        csv_data,
+                        editable=True,
+                        height=400,
+                        fit_columns_on_grid_load=True,
+                    )
+                    df_edited = grid_response['data']
+
+                    # Automatically save changes to CSV when data is edited
+                    if st.session_state.get('csv_data_updated', False):
+                        df_edited.to_csv(csv_files[0].name, index=False)
+                        st.success(f'CSV file "{csv_files[0].name}" updated successfully.')
+                        st.session_state['csv_data_updated'] = False  # Reset the flag
+
+                    # Store initial state of csv_data in session state
+                    if 'csv_data' not in st.session_state:
+                        st.session_state['csv_data'] = csv_data
+
+                    # Check for changes in data and update session state if needed
+                    if not df_edited.equals(st.session_state['csv_data']):
+                        st.session_state['csv_data_updated'] = True
+                        st.session_state['csv_data'] = df_edited.copy()
+
+                    # Button to manually save changes
+                    if st.button('Save Changes'):
+                        df_edited.to_csv(csv_files[0].name, index=False)
+                        st.success(f'CSV file "{csv_files[0].name}" updated successfully.')
+
+        except Exception as e:
+            st.error(f"Error reading CSV file: {str(e)}")
     # Section for MySQL query execution
     st.sidebar.header('MySQL Query Execution')
     query = st.sidebar.text_area("Enter MySQL Query")
