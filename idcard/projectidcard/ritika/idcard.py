@@ -1,38 +1,41 @@
 import streamlit as st
+import pandas as pd
 import os
 from PIL import Image, ImageDraw, ImageFont
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-import base64
-import mysql.connector
-import pandas as pd
 import textwrap
+from fpdf import FPDF
+import base64
+from st_aggrid import AgGrid
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.units import inch, mm
+import mysql.connector
+import logging
 
-# MySQL connection details
-mysql_config = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': 'Ritika@12',
-    'database': 'id_card_system'
-}
+logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
-# Function to execute MySQL queries
-def execute_mysql_query(query):
-    try:
-        connection = mysql.connector.connect(**mysql_config)
-        cursor = connection.cursor(dictionary=True)
-        cursor.execute(query)
-        
-        if cursor.description is not None:
-            columns = [col[0] for col in cursor.description]
-            rows = cursor.fetchall()
-            result_df = pd.DataFrame(rows, columns=columns)
-            st.write(result_df)  # Display the result DataFrame
+# MySQL connection
+def create_connection():
+    connection = mysql.connector.connect(
+        host="localhost",
+        user="your_username",
+        password="your_password",
+        database="your_database"
+    )
+    return connection
 
-        connection.commit()
-        connection.close()
-    except mysql.connector.Error as e:
-        st.error(f"Error executing query: {str(e)}")
+# Upload CSV data to MySQL
+def upload_to_mysql(df, table_name):
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    for index, row in df.iterrows():
+        sql = f"INSERT INTO {table_name} (column1, column2, column3) VALUES (%s, %s, %s)"  # Adjust the columns based on your table structure
+        cursor.execute(sql, tuple(row))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
@@ -41,10 +44,9 @@ def preprocess_image(image_path):
         final_image = input_image.convert("RGB")
         return final_image
     except Exception as e:
-        st.error(f"Error opening image at {image_path}: {str(e)}")
+        st.error(f"Error opening image at image_path: {str(e)}")
         return None
 
-# Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
@@ -52,11 +54,15 @@ def generate_card(data, template_path, image_folder, qr_folder):
         return None
     
     pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
+    st.write(f"Looking for image at path: {pic_path}")
+    
     if not os.path.exists(pic_path):
         st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
         return None
     
     qr_path = os.path.join(qr_folder, f"{pic_id}.png")
+    st.write(f"Looking for QR code at path: {qr_path}")
+    
     if not os.path.exists(qr_path):
         st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
         return None
@@ -152,12 +158,12 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
-# Function to create PDF of generated ID cards
-def create_pdf(generated_cards, pdf_path):
+
+def create_pdf(images, pdf_path):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
 
-        # Define dimensions and spacing for the grid
+        # Define the dimensions and spacing for the grid
         grid_width = 2
         grid_height = 4
         image_width = 3.575 * inch
@@ -172,7 +178,7 @@ def create_pdf(generated_cards, pdf_path):
         # Track the current page
         current_page = 0
 
-        for i, image in enumerate(generated_cards):
+        for i, image in enumerate(images):
             col = i % grid_width
             row = i // grid_width
 
@@ -199,10 +205,23 @@ def create_pdf(generated_cards, pdf_path):
         return pdf_path  # Return the path where the PDF is saved
 
     except Exception as e:
-        st.error(f"Error creating PDF: {str(e)}")
+        logging.error(f"Error creating PDF: {str(e)}")
         return None
 
+
+def display_pdf(pdf_path):
+    try:
+        with open(pdf_path, "rb") as f:
+            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+            pdf_display = f'<a href="data:application/pdf;base64,{base64_pdf}" download="generated_id_cards.pdf">Download PDF</a>'
+            st.markdown(pdf_display, unsafe_allow_html=True)
+    except FileNotFoundError:
+        st.error(f"PDF file '{pdf_path}' not found.")
+    except Exception as e:
+        st.error(f"Error displaying PDF: {str(e)}")
+        
 def main():
+    # Streamlit setup
     st.title("Automatic ID Card Generation")
 
     # Update these paths according to your file locations
@@ -211,19 +230,10 @@ def main():
     qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
     output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"  # Default download path
 
-    # Section for MySQL query execution
-    st.sidebar.header('MySQL Query Execution')
-    query = st.sidebar.text_area("Enter MySQL Query")
-    
-    if st.sidebar.button("Execute Query"):
-        if query:
-            execute_mysql_query(query)
-        else:
-            st.sidebar.error("Please enter a MySQL query.")
-
-    # Section for CSV management
+    # Sidebar for managing CSV
     st.sidebar.header('Manage CSV')
 
+    # File uploader in sidebar
     csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
 
     if csv_file is not None:
@@ -231,9 +241,10 @@ def main():
             csv_data = pd.read_csv(csv_file)
             st.sidebar.success('CSV file successfully uploaded/updated.')
 
-            # Button to store CSV data into MySQL
-            if st.sidebar.button('Store CSV Data into MySQL'):
-                store_csv_to_mysql(csv_data)
+            # Upload CSV to MySQL
+            if st.sidebar.button('Upload to MySQL'):
+                upload_to_mysql(csv_data, 'your_table_name')
+                st.sidebar.success('CSV data uploaded to MySQL successfully.')
 
             # Checkbox for modifying CSV in sidebar
             modified_csv = st.sidebar.checkbox('Modify CSV')
@@ -241,7 +252,33 @@ def main():
                 st.subheader('Edit CSV')
                 # Display editable DataFrame below the checkbox
                 with st.expander("View/Modify CSV"):
-                    grid_response = st.write(csv_data)  # Display CSV data in an editable grid
+                    grid_response = AgGrid(
+                        csv_data,
+                        editable=True,
+                        height=400,
+                        fit_columns_on_grid_load=True,
+                    )
+                    df_edited = grid_response['data']
+
+                    # Automatically save changes to CSV when data is edited
+                    if st.session_state.get('csv_data_updated', False):
+                        df_edited.to_csv(csv_file.name, index=False)
+                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
+                        st.session_state['csv_data_updated'] = False  # Reset the flag
+
+                    # Store initial state of csv_data in session state
+                    if 'csv_data' not in st.session_state:
+                        st.session_state['csv_data'] = csv_data
+
+                    # Check for changes in data and update session state if needed
+                    if not df_edited.equals(st.session_state['csv_data']):
+                        st.session_state['csv_data_updated'] = True
+                        st.session_state['csv_data'] = df_edited.copy()
+
+                    # Button to manually save changes
+                    if st.button('Save Changes'):
+                        df_edited.to_csv(csv_file.name, index=False)
+                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
 
         except Exception as e:
             st.error(f"Error reading CSV file: {str(e)}")
@@ -308,45 +345,6 @@ def main():
             else:
                 st.error("Failed to create PDF.")
 
-# Function to store CSV data into MySQL
-def store_csv_to_mysql(csv_data):
-    try:
-        connection = mysql.connector.connect(**mysql_config)
-        cursor = connection.cursor()
-
-        for index, row in csv_data.iterrows():
-            query = """
-                INSERT INTO your_table_name (ID, Name, Division_Section, Internship_Start_Date, Internship_End_Date, Mobile, University)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE
-                Name = VALUES(Name),
-                Division_Section = VALUES(Division_Section),
-                Internship_Start_Date = VALUES(Internship_Start_Date),
-                Internship_End_Date = VALUES(Internship_End_Date),
-                Mobile = VALUES(Mobile),
-                University = VALUES(University)
-            """
-            # Extract values from the row and execute the query
-            values = (
-                row['ID'], 
-                row['Name'], 
-                row['Division/Section'], 
-                row['Internship Start Date'], 
-                row['Internship End Date'], 
-                row['Mobile'], 
-                row['University']
-            )
-            cursor.execute(query, values)
-
-        connection.commit()
-        connection.close()
-
-        st.success("CSV data stored to MySQL database successfully.")
-
-    except mysql.connector.Error as e:
-        st.error(f"Error storing CSV data to MySQL: {str(e)}")
-
-# Function to generate download link for binary files
 def get_binary_file_downloader_html(bin_file, file_label='File'):
     with open(bin_file, 'rb') as f:
         data = f.read()
