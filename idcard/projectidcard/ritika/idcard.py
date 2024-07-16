@@ -9,45 +9,33 @@ from st_aggrid import AgGrid
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
-import logging
 import mysql.connector
-from mysql.connector import Error
+import logging
 
-# MySQL connection details
-mysql_config = {
-    'database': 'internship_data',
-    'user': 'root',
-    'password': 'Ritika@123',
-    'host': 'localhost',
-    'port': 3306  # Default MySQL port
-}
+logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
-# Function to establish MySQL connection
-def get_mysql_connection(config):
-    try:
-        conn = mysql.connector.connect(**config)
-        logging.debug(f"Connected to MySQL server: {config['host']}:{config['port']} as user '{config['user']}'")
-        return conn
-    except Exception as e:
-        logging.error(f"Error connecting to MySQL server: {str(e)}")
-        raise  # Raise the exception to propagate the error
+# MySQL connection
+def create_connection():
+    connection = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="Ritika@12",
+        database="id_card_system"
+    )
+    return connection
 
-# Function to execute MySQL queries
-def execute_mysql_query(query):
-    conn = get_mysql_connection(mysql_config)
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(query)
-            if cursor.description:
-                result = cursor.fetchall()
-                result_df = pd.DataFrame(result, columns=[col[0] for col in cursor.description])
-                st.write(result_df)
-            conn.commit()
-    except Exception as e:
-        st.error(f"Error executing query: {str(e)}")
-        logging.error(f"Error executing query: {str(e)}")
-    finally:
-        conn.close()
+# Upload CSV data to MySQL
+def upload_to_mysql(df, table_name):
+    conn = create_connection()
+    cursor = conn.cursor()
+
+    for index, row in df.iterrows():
+        sql = f"INSERT INTO {table_name} (column1, column2, column3,column4,column5,column6,column7,column8) VALUES (%s, %s, %s,%s, %s, %s,%s, %s)"  # Adjust the columns based on your table structure
+        cursor.execute(sql, tuple(row))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
@@ -134,6 +122,43 @@ def generate_card(data, template_path, image_folder, qr_folder):
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
 
+# Function to center-align text with wrapping
+def center_align_text_wrapper(text, width=15):
+    words = text.split()
+    lines = []
+    current_line = ""
+
+    for word in words:
+        if len(current_line) + len(word) + 1 <= width:
+            current_line += word + " "
+        else:
+            lines.append(current_line[:-1])
+            current_line = word + " "
+
+    lines.append(current_line[:-1])
+    centered_lines = [line.center(width) for line in lines]
+    centered_text = "\n".join(centered_lines)
+
+    return centered_text
+
+# Function to get the head by division
+def get_head_by_division(division_name):
+    divisions = {
+        "Advanced Information Technologies Group": "Dr. Sanjay Singh",
+        "Societal Electronics Group": "Dr. Udit Narayan Pal",
+        "Industrial Automation": "Dr. S.S. Sadistap",
+        "Vacuum Electronic Devices Group": "Dr. Sanjay Kr. Ghosh",
+        "High-Frequency Devices & System Group": "Dr. Ayan Bandhopadhyay",
+        "Semiconductor Sensors & Microsystems Group": "Dr. Suchandan Pal",
+        "Semiconductor Process Technology Group": "Dr. Kuldip Singh",
+        "Industrial R & D": "Mr. Ashok Chauhan",
+        "High Power Microwave Systems Group": "Dr. Anirban Bera",
+    }
+
+    division_name = division_name.strip().title()
+    return divisions.get(division_name, "Division not found or head information not available.")
+
+
 def create_pdf(images, pdf_path):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
@@ -183,6 +208,7 @@ def create_pdf(images, pdf_path):
         logging.error(f"Error creating PDF: {str(e)}")
         return None
 
+
 def display_pdf(pdf_path):
     try:
         with open(pdf_path, "rb") as f:
@@ -193,92 +219,9 @@ def display_pdf(pdf_path):
         st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
-
-# Function to center-align text with wrapping
-def center_align_text_wrapper(text, width=15):
-    words = text.split()
-    lines = []
-    current_line = ""
-
-    for word in words:
-        if len(current_line) + len(word) + 1 <= width:
-            current_line += word + " "
-        else:
-            lines.append(current_line[:-1])
-            current_line = word + " "
-
-    lines.append(current_line[:-1])
-    centered_lines = [line.center(width) for line in lines]
-    centered_text = "\n".join(centered_lines)
-
-    return centered_text
-
-# Function to get the head by division
-def get_head_by_division(division_name):
-    divisions = {
-        "Advanced Information Technologies Group": "Dr. Sanjay Singh",
-        "Societal Electronics Group": "Dr. Udit Narayan Pal",
-        "Industrial Automation": "Dr. S.S. Sadistap",
-        "Vacuum Electronic Devices Group": "Dr. Sanjay Kr. Ghosh",
-        "High-Frequency Devices & System Group": "Dr. Ayan Bandhopadhyay",
-        "Semiconductor Sensors & Microsystems Group": "Dr. Suchandan Pal",
-        "Semiconductor Process Technology Group": "Dr. Kuldip Singh",
-        "Industrial R & D": "Mr. Ashok Chauhan",
-        "High Power Microwave Systems Group": "Dr. Anirban Bera",
-    }
-
-    division_name = division_name.strip().title()
-    return divisions.get(division_name, "Division not found or head information not available.")
-
-# Function to clean table and column names
-def clean_name(name):
-    return name.strip().lower().replace(' ', '_').replace('/', '_')
-
-# Function to store CSV data into MySQL
-def store_csv_to_mysql(csv_data, table_name):
-    conn = get_mysql_connection(mysql_config)
-    try:
-        cursor = conn.cursor()
-
-        # Clean column names
-        csv_data.columns = [clean_name(col) for col in csv_data.columns]
-
-        # Generate column names for the insert query
-        columns = ', '.join(csv_data.columns)
-
-        # Prepare placeholders for values in the insert query
-        placeholders = ', '.join(['%s'] * len(csv_data.columns))
-
-        # Create the table with cleaned name
-        create_table_query = f"CREATE TABLE IF NOT EXISTS {table_name} ({', '.join([f'{col} VARCHAR(255)' for col in csv_data.columns])})"
-        cursor.execute(create_table_query)
-
-        # Execute the insert query with multiple rows
-        for _, row in csv_data.iterrows():
-            insert_query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
-            cursor.execute(insert_query, tuple(row))
-
-        conn.commit()
-
-        st.success(f"CSV data stored to MySQL database successfully in table '{table_name}'.")
-
-    except Error as e:
-        st.error(f"Error storing CSV data to MySQL: {str(e)}")
-        logging.error(f"Error storing CSV data to MySQL: {str(e)}")
-    finally:
-        if 'cursor' in locals():
-            cursor.close()
-        if 'conn' in locals():
-            conn.close()
-
-# Function to generate download link for binary files
-def get_binary_file_downloader_html(bin_file, file_label='File'):
-    with open(bin_file, 'rb') as f:
-        data = f.read()
-    bin_str = base64.b64encode(data).decode()
-    return f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'
-
+        
 def main():
+    # Streamlit setup
     st.title("Automatic ID Card Generation")
 
     # Update these paths according to your file locations
@@ -287,15 +230,21 @@ def main():
     qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
     output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"  # Default download path
 
-    # Section for CSV management
+    # Sidebar for managing CSV
     st.sidebar.header('Manage CSV')
 
-    csv_files = st.sidebar.file_uploader("Upload or Update your CSV files", type=['csv'], accept_multiple_files=True, key='csv_uploader')
+    # File uploader in sidebar
+    csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
 
-    if csv_files is not None:
+    if csv_file is not None:
         try:
-            csv_data = pd.read_csv(csv_files[0])  # Assuming you are using the first file if multiple are uploaded
+            csv_data = pd.read_csv(csv_file)
             st.sidebar.success('CSV file successfully uploaded/updated.')
+
+            # Upload CSV to MySQL
+            if st.sidebar.button('Upload to MySQL'):
+                upload_to_mysql(csv_data, 'your_table_name')
+                st.sidebar.success('CSV data uploaded to MySQL successfully.')
 
             # Checkbox for modifying CSV in sidebar
             modified_csv = st.sidebar.checkbox('Modify CSV')
@@ -313,8 +262,8 @@ def main():
 
                     # Automatically save changes to CSV when data is edited
                     if st.session_state.get('csv_data_updated', False):
-                        df_edited.to_csv(csv_files[0].name, index=False)
-                        st.success(f'CSV file "{csv_files[0].name}" updated successfully.')
+                        df_edited.to_csv(csv_file.name, index=False)
+                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
                         st.session_state['csv_data_updated'] = False  # Reset the flag
 
                     # Store initial state of csv_data in session state
@@ -328,21 +277,11 @@ def main():
 
                     # Button to manually save changes
                     if st.button('Save Changes'):
-                        df_edited.to_csv(csv_files[0].name, index=False)
-                        st.success(f'CSV file "{csv_files[0].name}" updated successfully.')
+                        df_edited.to_csv(csv_file.name, index=False)
+                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
 
         except Exception as e:
             st.error(f"Error reading CSV file: {str(e)}")
-    
-    # Section for MySQL query execution
-    st.sidebar.header('MySQL Query Execution')
-    query = st.sidebar.text_area("Enter MySQL Query")
-    
-    if st.sidebar.button("Execute Query"):
-        if query:
-            execute_mysql_query(query)
-        else:
-            st.sidebar.error("Please enter a MySQL query.")
 
     # Section to generate ID cards
     st.subheader('Generate ID Cards')
@@ -405,6 +344,12 @@ def main():
                 st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
             else:
                 st.error("Failed to create PDF.")
+
+def get_binary_file_downloader_html(bin_file, file_label='File'):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    bin_str = base64.b64encode(data).decode()
+    return f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'
 
 if __name__ == "__main__":
     main()
