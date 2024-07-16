@@ -11,47 +11,31 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
 import mysql.connector
 import logging
-from mysql.connector import Error
 
-# Configure logging to capture errors
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
-# Function to create MySQL connection
+# MySQL connection
 def create_connection():
-    try:
-        connection = mysql.connector.connect(
-            host="localhost",
-            user="root",
-            password="Ritika@12",
-            database="id_card_system"
-        )
-        if connection.is_connected():
-            st.write("Connected to MySQL database")
-        return connection
-    except Error as e:
-        st.error(f"Error: {e}")
-        return None
+    connection = mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="Ritika@12",
+        database="id_card_system"
+    )
+    return connection
 
-# Function to close MySQL connection
-def close_connection(connection):
-    if connection.is_connected():
-        connection.close()
-        st.write("MySQL connection is closed")
+# Upload CSV data to MySQL
+def upload_to_mysql(df, table_name):
+    conn = create_connection()
+    cursor = conn.cursor()
 
-# Function to execute a MySQL query
-def execute_mysql_query(query):
-    connection = create_connection()
-    if connection is not None:
-        try:
-            cursor = connection.cursor()
-            cursor.execute(query)
-            connection.commit()
-            st.write("Query executed successfully")
-        except Error as e:
-            st.error(f"Error executing query: {e}")
-        finally:
-            cursor.close()
-            close_connection(connection)
+    for index, row in df.iterrows():
+        sql = f"INSERT INTO {table_name} (column1, column2, column3,column4,column5,column6,column7,column8) VALUES (%s, %s, %s,%s, %s, %s,%s, %s)"  # Adjust the columns based on your table structure
+        cursor.execute(sql, tuple(row))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
@@ -63,7 +47,6 @@ def preprocess_image(image_path):
         st.error(f"Error opening image at image_path: {str(e)}")
         return None
 
-# Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
@@ -176,7 +159,6 @@ def get_head_by_division(division_name):
     return divisions.get(division_name, "Division not found or head information not available.")
 
 
-# Function to create PDF of generated ID cards
 def create_pdf(images, pdf_path):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
@@ -227,7 +209,6 @@ def create_pdf(images, pdf_path):
         return None
 
 
-# Function to display PDF download link
 def display_pdf(pdf_path):
     try:
         with open(pdf_path, "rb") as f:
@@ -235,72 +216,140 @@ def display_pdf(pdf_path):
             pdf_display = f'<a href="data:application/pdf;base64,{base64_pdf}" download="generated_id_cards.pdf">Download PDF</a>'
             st.markdown(pdf_display, unsafe_allow_html=True)
     except FileNotFoundError:
-        st.error(f"PDF file not found at path: {pdf_path}")
-
-
-# Main function to run the Streamlit app
+        st.error(f"PDF file '{pdf_path}' not found.")
+    except Exception as e:
+        st.error(f"Error displaying PDF: {str(e)}")
+        
 def main():
-    st.title("Intern ID Card Generation System")
+    # Streamlit setup
+    st.title("Automatic ID Card Generation")
 
-    menu = ["Home", "View Data", "Generate ID Cards"]
-    choice = st.sidebar.selectbox("Menu", menu)
+    # Update these paths according to your file locations
+    template_path = "idcard/projectidcard/ritika/ST.png"
+    image_folder = "idcard/projectidcard/ritika/downloaded_images"
+    qr_folder = "idcard/projectidcard/ritika/ST_output_qr_codes"
+    output_pdf_path_default = "C:\\Users\\Shree\\Downloads\\generated_id_cards.pdf"  # Default download path
 
-    # Connect to MySQL database
-    connection = create_connection()
+    # Sidebar for managing CSV
+    st.sidebar.header('Manage CSV')
 
-    if choice == "Home":
-        st.subheader("Home")
-        st.write("Welcome to the Intern ID Card Generation System!")
+    # File uploader in sidebar
+    csv_file = st.sidebar.file_uploader("Upload or Update your CSV file", type=['csv'], key='csv_uploader')
 
-    elif choice == "View Data":
-        st.subheader("View Data")
-        
-        query = "SELECT * FROM intern_details"
-        df = execute_query(connection, query)
-        
-        if df is not None:
-            AgGrid(df)
+    if csv_file is not None:
+        try:
+            csv_data = pd.read_csv(csv_file)
+            st.sidebar.success('CSV file successfully uploaded/updated.')
 
-    elif choice == "Generate ID Cards":
-        st.subheader("Generate ID Cards")
-        st.write("Please select an intern ID from the dropdown list to generate their ID card:")
+            # Upload CSV to MySQL
+            if st.sidebar.button('Upload to MySQL'):
+                upload_to_mysql(csv_data, 'your_table_name')
+                st.sidebar.success('CSV data uploaded to MySQL successfully.')
 
-        # Fetch intern IDs from MySQL database
-        query = "SELECT ID FROM intern_details"
-        cursor = connection.cursor()
-        cursor.execute(query)
-        ids = [row[0] for row in cursor.fetchall()]
-        cursor.close()
+            # Checkbox for modifying CSV in sidebar
+            modified_csv = st.sidebar.checkbox('Modify CSV')
+            if modified_csv:
+                st.subheader('Edit CSV')
+                # Display editable DataFrame below the checkbox
+                with st.expander("View/Modify CSV"):
+                    grid_response = AgGrid(
+                        csv_data,
+                        editable=True,
+                        height=400,
+                        fit_columns_on_grid_load=True,
+                    )
+                    df_edited = grid_response['data']
 
-        selected_id = st.selectbox("Select Intern ID", ids)
+                    # Automatically save changes to CSV when data is edited
+                    if st.session_state.get('csv_data_updated', False):
+                        df_edited.to_csv(csv_file.name, index=False)
+                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
+                        st.session_state['csv_data_updated'] = False  # Reset the flag
 
-        if st.button("Generate ID Card"):
-            # Fetch intern details based on selected ID
-            query = f"SELECT * FROM intern_details WHERE ID = {selected_id}"
-            cursor = connection.cursor()
-            cursor.execute(query)
-            data = cursor.fetchone()
-            cursor.close()
+                    # Store initial state of csv_data in session state
+                    if 'csv_data' not in st.session_state:
+                        st.session_state['csv_data'] = csv_data
 
-            # Generate ID card for selected intern
-            template_path = "id_card_template.jpg"  # Update with your template path
-            image_folder = "images"  # Update with your image folder path
-            qr_folder = "qrcodes"  # Update with your QR code folder path
+                    # Check for changes in data and update session state if needed
+                    if not df_edited.equals(st.session_state['csv_data']):
+                        st.session_state['csv_data_updated'] = True
+                        st.session_state['csv_data'] = df_edited.copy()
 
-            card_image = generate_card(data, template_path, image_folder, qr_folder)
+                    # Button to manually save changes
+                    if st.button('Save Changes'):
+                        df_edited.to_csv(csv_file.name, index=False)
+                        st.success(f'CSV file "{csv_file.name}" updated successfully.')
 
-            if card_image is not None:
-                st.image(card_image, caption=f"Generated ID Card for ID: {selected_id}", use_column_width=True)
+        except Exception as e:
+            st.error(f"Error reading CSV file: {str(e)}")
 
-                # Option to download individual card as PDF
-                if st.button("Download as PDF"):
-                    pdf_filename = f"id_card_{selected_id}.pdf"
-                    card_image.save(pdf_filename)
-                    st.markdown(get_pdf_download_link(pdf_filename), unsafe_allow_html=True)
+    # Section to generate ID cards
+    st.subheader('Generate ID Cards')
+    generate_mode = st.radio("Select ID card generation mode:", ('Individual ID', 'Comma-separated IDs', 'All Students'))
 
-    # Close MySQL connection
-    close_connection(connection)
+    if generate_mode == 'Individual ID':
+        id_input = st.text_input('Enter the ID:')
+        if st.button('Generate ID Card'):
+            if not id_input.isdigit():
+                st.warning('Invalid input. Please enter a valid numeric ID.')
+            else:
+                selected_data = csv_data[csv_data['ID'] == int(id_input)].iloc[0]
+                generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
+                if generated_card:
+                    st.image(generated_card, caption=f"Generated ID Card for ID: {id_input}")
 
+    elif generate_mode == 'Comma-separated IDs':
+        ids_input = st.text_input('Enter comma-separated IDs:')
+        if st.button('Generate ID Cards'):
+            id_list = [int(id.strip()) for id in ids_input.split(',') if id.strip().isdigit()]
+            generated_cards = []
+
+            for id_input in id_list:
+                selected_data = csv_data[csv_data['ID'] == id_input].iloc[0]
+                generated_card = generate_card(selected_data, template_path, image_folder, qr_folder)
+                if generated_card:
+                    generated_cards.append(generated_card)
+
+            if generated_cards:
+                st.success(f"Generated {len(generated_cards)} ID cards.")
+                for i, card in enumerate(generated_cards):
+                    st.image(card, caption=f"Generated ID Card for ID: {id_list[i]}")
+
+                # Create PDF of generated ID cards
+                pdf_path = create_pdf(generated_cards, output_pdf_path_default)
+                if pdf_path:
+                    st.success(f"PDF created successfully.")
+                    # Display download button for the PDF
+                    st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
+                else:
+                    st.error("Failed to create PDF.")
+
+    elif generate_mode == 'All Students':
+        st.info("Generating ID cards for all students...")
+        generated_cards = []
+
+        for index, data in csv_data.iterrows():
+            generated_card = generate_card(data, template_path, image_folder, qr_folder)
+            if generated_card:
+                generated_cards.append(generated_card)
+
+        if generated_cards:
+            st.success(f"Generated {len(generated_cards)} ID cards.")
+
+            # Create PDF of generated ID cards
+            pdf_path = create_pdf(generated_cards, output_pdf_path_default)
+            if pdf_path:
+                st.success(f"PDF created successfully.")
+                # Display download button for the PDF
+                st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
+            else:
+                st.error("Failed to create PDF.")
+
+def get_binary_file_downloader_html(bin_file, file_label='File'):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    bin_str = base64.b64encode(data).decode()
+    return f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">{file_label}</a>'
 
 if __name__ == "__main__":
     main()
