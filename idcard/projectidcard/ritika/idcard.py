@@ -129,6 +129,7 @@ def generate_card(data, template_path, image_folder, qr_folder):
     except Exception as e:
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
+
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
     words = text.split()
@@ -147,6 +148,7 @@ def center_align_text_wrapper(text, width=15):
     centered_text = "\n".join(centered_lines)
 
     return centered_text
+
 # Function to get the head by division
 def get_head_by_division(division_name):
     divisions = {
@@ -163,7 +165,6 @@ def get_head_by_division(division_name):
 
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
-
 
 def create_pdf(images, pdf_path):
     try:
@@ -214,7 +215,6 @@ def create_pdf(images, pdf_path):
         logging.error(f"Error creating PDF: {str(e)}")
         return None
 
-
 def display_pdf(pdf_path):
     try:
         with open(pdf_path, "rb") as f:
@@ -225,7 +225,7 @@ def display_pdf(pdf_path):
         st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
-        
+
 def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
