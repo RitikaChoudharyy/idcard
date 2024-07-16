@@ -11,31 +11,49 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
 import mysql.connector
 import logging
+from mysql.connector import Error
+
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
 
-# MySQL connection
+
+
+# Function to create MySQL connection
 def create_connection():
-    connection = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="Ritika@12",
-        database="id_card_system"
-    )
-    return connection
+    try:
+        connection = mysql.connector.connect(
+            host="localhost",
+            user="root",
+            password="Ritika@12",
+            database="id_card_system"
+        )
+        if connection.is_connected():
+            st.write("Connected to MySQL database")
+        return connection
+    except Error as e:
+        st.error(f"Error: {e}")
+        return None
 
-# Upload CSV data to MySQL
-def upload_to_mysql(df, table_name):
-    conn = create_connection()
-    cursor = conn.cursor()
+# Function to close MySQL connection
+def close_connection(connection):
+    if connection.is_connected():
+        connection.close()
+        st.write("MySQL connection is closed")
 
-    for index, row in df.iterrows():
-        sql = f"INSERT INTO {table_name} (column1, column2, column3,column4,column5,column6,column7,column8) VALUES (%s, %s, %s,%s, %s, %s,%s, %s)"  # Adjust the columns based on your table structure
-        cursor.execute(sql, tuple(row))
-
-    conn.commit()
-    cursor.close()
-    conn.close()
+# Function to execute a MySQL query
+def execute_mysql_query(query):
+    connection = create_connection()
+    if connection is not None:
+        try:
+            cursor = connection.cursor()
+            cursor.execute(query)
+            connection.commit()
+            st.write("Query executed successfully")
+        except Error as e:
+            st.error(f"Error executing query: {e}")
+        finally:
+            cursor.close()
+            close_connection(connection)
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
