@@ -3,11 +3,10 @@ import os
 from PIL import Image, ImageDraw, ImageFont
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
-import logging
 import base64
-import textwrap
 import mysql.connector
 import pandas as pd
+import textwrap
 
 # MySQL connection details
 mysql_config = {
@@ -34,7 +33,6 @@ def execute_mysql_query(query):
         connection.close()
     except mysql.connector.Error as e:
         st.error(f"Error executing query: {str(e)}")
-        logging.error(f"Error executing query: {str(e)}")
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
@@ -43,9 +41,10 @@ def preprocess_image(image_path):
         final_image = input_image.convert("RGB")
         return final_image
     except Exception as e:
-        st.error(f"Error opening image at image_path: {str(e)}")
+        st.error(f"Error opening image at {image_path}: {str(e)}")
         return None
 
+# Function to generate ID card
 def generate_card(data, template_path, image_folder, qr_folder):
     pic_id = str(data.get('ID', ''))
     if not pic_id:
@@ -53,15 +52,11 @@ def generate_card(data, template_path, image_folder, qr_folder):
         return None
     
     pic_path = os.path.join(image_folder, f"{pic_id}.jpg")
-    st.write(f"Looking for image at path: {pic_path}")
-    
     if not os.path.exists(pic_path):
         st.error(f"Image not found for ID: {pic_id} at path: {pic_path}")
         return None
     
     qr_path = os.path.join(qr_folder, f"{pic_id}.png")
-    st.write(f"Looking for QR code at path: {qr_path}")
-    
     if not os.path.exists(qr_path):
         st.error(f"QR code not found for ID: {pic_id} at path: {qr_path}")
         return None
@@ -157,11 +152,12 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
-def create_pdf(images, pdf_path):
+# Function to create PDF of generated ID cards
+def create_pdf(generated_cards, pdf_path):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
 
-        # Define the dimensions and spacing for the grid
+        # Define dimensions and spacing for the grid
         grid_width = 2
         grid_height = 4
         image_width = 3.575 * inch
@@ -176,7 +172,7 @@ def create_pdf(images, pdf_path):
         # Track the current page
         current_page = 0
 
-        for i, image in enumerate(images):
+        for i, image in enumerate(generated_cards):
             col = i % grid_width
             row = i // grid_width
 
@@ -203,21 +199,9 @@ def create_pdf(images, pdf_path):
         return pdf_path  # Return the path where the PDF is saved
 
     except Exception as e:
-        logging.error(f"Error creating PDF: {str(e)}")
+        st.error(f"Error creating PDF: {str(e)}")
         return None
 
-
-def display_pdf(pdf_path):
-    try:
-        with open(pdf_path, "rb") as f:
-            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
-            pdf_display = f'<a href="data:application/pdf;base64,{base64_pdf}" download="generated_id_cards.pdf">Download PDF</a>'
-            st.markdown(pdf_display, unsafe_allow_html=True)
-    except FileNotFoundError:
-        st.error(f"PDF file '{pdf_path}' not found.")
-    except Exception as e:
-        st.error(f"Error displaying PDF: {str(e)}")
-        
 def main():
     st.title("Automatic ID Card Generation")
 
@@ -361,7 +345,6 @@ def store_csv_to_mysql(csv_data):
 
     except mysql.connector.Error as e:
         st.error(f"Error storing CSV data to MySQL: {str(e)}")
-        logging.error(f"Error storing CSV data to MySQL: {str(e)}")
 
 # Function to generate download link for binary files
 def get_binary_file_downloader_html(bin_file, file_label='File'):
