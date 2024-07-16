@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import os
@@ -25,18 +24,26 @@ def create_connection():
     )
     return connection
 
-# Upload CSV data to MySQL
-def upload_to_mysql(df, table_name):
-    conn = create_connection()
-    cursor = conn.cursor()
-
-    for index, row in df.iterrows():
-        sql = f"INSERT INTO {table_name} (column1, column2, column3,column4,column5,column6,column7,column8) VALUES (%s, %s, %s,%s, %s, %s,%s, %s)"  # Adjust the columns based on your table structure
-        cursor.execute(sql, tuple(row))
-
-    conn.commit()
-    cursor.close()
-    conn.close()
+# Function to execute MySQL queries
+def execute_mysql_query(query):
+    try:
+        connection = create_connection()
+        cursor = connection.cursor(dictionary=True)
+        cursor.execute(query)
+        
+        columns = [col[0] for col in cursor.description]
+        rows = cursor.fetchall()
+        result_df = pd.DataFrame(rows, columns=columns)
+        
+        st.write("Query executed successfully.")
+        st.write(result_df)  # Display the result DataFrame
+        
+    except mysql.connector.Error as e:
+        st.error(f"Error executing query: {str(e)}")
+    finally:
+        if 'connection' in locals() and connection.is_connected():
+            cursor.close()
+            connection.close()
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
@@ -122,7 +129,6 @@ def generate_card(data, template_path, image_folder, qr_folder):
     except Exception as e:
         st.error(f"Error generating card for ID: {pic_id}. Error: {str(e)}")
         return None
-
 # Function to center-align text with wrapping
 def center_align_text_wrapper(text, width=15):
     words = text.split()
@@ -141,7 +147,6 @@ def center_align_text_wrapper(text, width=15):
     centered_text = "\n".join(centered_lines)
 
     return centered_text
-
 # Function to get the head by division
 def get_head_by_division(division_name):
     divisions = {
@@ -345,6 +350,19 @@ def main():
                 st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
             else:
                 st.error("Failed to create PDF.")
+
+    # Section to execute MySQL queries
+    st.subheader('Execute MySQL Queries')
+
+    # Input box for MySQL query
+    query = st.text_area("Enter your MySQL query:")
+
+    # Execute query button
+    if st.button("Execute Query"):
+        if query.strip() == "":
+            st.warning("Please enter a MySQL query.")
+        else:
+            execute_mysql_query(query)
 
 def get_binary_file_downloader_html(bin_file, file_label='File'):
     with open(bin_file, 'rb') as f:
