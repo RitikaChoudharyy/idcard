@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import os
@@ -18,9 +19,9 @@ logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s
 def create_connection():
     connection = mysql.connector.connect(
         host="localhost",
-        user="your_username",
-        password="your_password",
-        database="your_database"
+        user="root",
+        password="Ritika@12",
+        database="id_card_system"
     )
     return connection
 
@@ -30,7 +31,7 @@ def upload_to_mysql(df, table_name):
     cursor = conn.cursor()
 
     for index, row in df.iterrows():
-        sql = f"INSERT INTO {table_name} (column1, column2, column3) VALUES (%s, %s, %s)"  # Adjust the columns based on your table structure
+        sql = f"INSERT INTO {table_name} (column1, column2, column3,column4,column5,column6,column7,column8) VALUES (%s, %s, %s,%s, %s, %s,%s, %s)"  # Adjust the columns based on your table structure
         cursor.execute(sql, tuple(row))
 
     conn.commit()
