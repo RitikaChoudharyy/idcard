@@ -9,41 +9,9 @@ from st_aggrid import AgGrid
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch, mm
-import mysql.connector
 import logging
 
 logging.basicConfig(filename='app.log', level=logging.ERROR, format='%(asctime)s - %(message)s')
-
-# MySQL connection
-def create_connection():
-    connection = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="Ritika@12",
-        database="id_card_system"
-    )
-    return connection
-
-# Function to execute MySQL queries
-def execute_mysql_query(query):
-    try:
-        connection = create_connection()
-        cursor = connection.cursor(dictionary=True)
-        cursor.execute(query)
-        
-        columns = [col[0] for col in cursor.description]
-        rows = cursor.fetchall()
-        result_df = pd.DataFrame(rows, columns=columns)
-        
-        st.write("Query executed successfully.")
-        st.write(result_df)  # Display the result DataFrame
-        
-    except mysql.connector.Error as e:
-        st.error(f"Error executing query: {str(e)}")
-    finally:
-        if 'connection' in locals() and connection.is_connected():
-            cursor.close()
-            connection.close()
 
 # Function to preprocess image (convert to RGB)
 def preprocess_image(image_path):
@@ -166,6 +134,7 @@ def get_head_by_division(division_name):
     division_name = division_name.strip().title()
     return divisions.get(division_name, "Division not found or head information not available.")
 
+
 def create_pdf(images, pdf_path):
     try:
         c = canvas.Canvas(pdf_path, pagesize=letter)
@@ -215,6 +184,7 @@ def create_pdf(images, pdf_path):
         logging.error(f"Error creating PDF: {str(e)}")
         return None
 
+
 def display_pdf(pdf_path):
     try:
         with open(pdf_path, "rb") as f:
@@ -225,7 +195,7 @@ def display_pdf(pdf_path):
         st.error(f"PDF file '{pdf_path}' not found.")
     except Exception as e:
         st.error(f"Error displaying PDF: {str(e)}")
-
+        
 def main():
     # Streamlit setup
     st.title("Automatic ID Card Generation")
@@ -246,11 +216,6 @@ def main():
         try:
             csv_data = pd.read_csv(csv_file)
             st.sidebar.success('CSV file successfully uploaded/updated.')
-
-            # Upload CSV to MySQL
-            if st.sidebar.button('Upload to MySQL'):
-                upload_to_mysql(csv_data, 'your_table_name')
-                st.sidebar.success('CSV data uploaded to MySQL successfully.')
 
             # Checkbox for modifying CSV in sidebar
             modified_csv = st.sidebar.checkbox('Modify CSV')
@@ -350,19 +315,6 @@ def main():
                 st.markdown(get_binary_file_downloader_html(pdf_path, 'Download PDF'), unsafe_allow_html=True)
             else:
                 st.error("Failed to create PDF.")
-
-    # Section to execute MySQL queries
-    st.subheader('Execute MySQL Queries')
-
-    # Input box for MySQL query
-    query = st.text_area("Enter your MySQL query:")
-
-    # Execute query button
-    if st.button("Execute Query"):
-        if query.strip() == "":
-            st.warning("Please enter a MySQL query.")
-        else:
-            execute_mysql_query(query)
 
 def get_binary_file_downloader_html(bin_file, file_label='File'):
     with open(bin_file, 'rb') as f:
